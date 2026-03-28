@@ -24,10 +24,9 @@ public class Server {
                 Socket clientSocket = serverSocket.accept();
                 System.out.println("[SERVER] New Agent Connected: " + clientSocket.getInetAddress().getHostAddress());
 
-                // In the next part, we will create a ClientHandler thread 
-                // and pass it to the pool.execute() method.
-                // For now, we just close the socket so the code compiles cleanly.
-                clientSocket.close(); 
+                // Hand the connection off to our new ClientHandler thread
+                ClientHandler clientThread = new ClientHandler(clientSocket);
+                pool.execute(clientThread); 
             }
         } catch (IOException e) {
             System.err.println("[SERVER FATAL ERROR] " + e.getMessage());
