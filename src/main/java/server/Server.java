@@ -1,4 +1,4 @@
-// The main entry point that listens for incoming connections and manages the thread pool and broadcasts.
+// The main entry point that listens for incoming connections and manages the thread pool, broadcasts, and market bots.
 package server;
 
 import java.io.IOException;
@@ -20,6 +20,13 @@ public class Server {
 
     public static void main(String[] args) {
         System.out.println("[SERVER] TradeHouse Server is booting up...");
+
+        // --- NEW: Start the Market Maker Bots ---
+        // We run this in a separate thread so it doesn't block the Socket listener
+        Thread botThread = new Thread(new BotEngine());
+        botThread.setDaemon(true); 
+        botThread.start();
+        // -----------------------------------------
 
         try (ServerSocket serverSocket = new ServerSocket(PORT)) {
             System.out.println("[SERVER] Listening for connections on port " + PORT + "...");
