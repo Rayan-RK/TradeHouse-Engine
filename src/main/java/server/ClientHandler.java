@@ -1,3 +1,4 @@
+// A dedicated background thread that handles network reading and writing for a single user.
 package server;
 
 import java.io.BufferedReader;
@@ -27,15 +28,17 @@ public class ClientHandler implements Runnable {
             while ((clientMessage = in.readLine()) != null) {
                 System.out.println("[SERVER] Received from client: " + clientMessage);
 
-                // --- NEW PARSING LOGIC ---
+                // --- PARSING & ORDER BOOK LOGIC ---
                 Order newOrder = CommandParser.parseOrder(clientMessage);
                 
                 if (newOrder != null) {
-                    out.println("SERVER_ACK: Successfully parsed " + newOrder.toString());
+                    // Send the valid order to the central market!
+                    Server.market.processOrder(newOrder);
+                    out.println("SERVER_ACK: Order received and sent to Order Book.");
                 } else {
                     out.println("SERVER_ERROR: Invalid command format. Use ACTION:TICKER:PRICE:QUANTITY");
                 }
-                // -------------------------
+                // ----------------------------------
             }
 
         } catch (IOException e) {

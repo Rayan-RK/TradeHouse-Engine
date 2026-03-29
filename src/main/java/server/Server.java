@@ -1,3 +1,4 @@
+// The main entry point that listens for incoming connections and manages the thread pool.
 package server;
 
 import java.io.IOException;
@@ -12,6 +13,10 @@ public class Server {
     
     // A thread pool handles multiple concurrent clients efficiently
     private static final ExecutorService pool = Executors.newFixedThreadPool(100);
+
+    // --- NEW: The single, shared market for all clients ---
+    public static final OrderBook market = new OrderBook();
+    // ------------------------------------------------------
 
     public static void main(String[] args) {
         System.out.println("[SERVER] TradeHouse Server is booting up...");

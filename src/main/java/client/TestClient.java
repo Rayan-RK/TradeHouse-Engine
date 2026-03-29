@@ -1,3 +1,4 @@
+// A standalone script used to test network connections and parser logic without needing a GUI.
 package client;
 
 import java.io.BufferedReader;

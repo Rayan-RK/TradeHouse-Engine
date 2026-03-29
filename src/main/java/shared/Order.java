@@ -1,3 +1,4 @@
+// Defines the shared data model representing a single Buy or Sell order across the network.
 package shared;
 
 import java.io.Serializable;

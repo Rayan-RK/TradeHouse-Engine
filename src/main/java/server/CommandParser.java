@@ -1,3 +1,4 @@
+// Translates raw text strings received over the socket into valid Java Order objects.
 package server;
 
 import shared.Order;
