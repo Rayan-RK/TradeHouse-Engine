@@ -20,11 +20,14 @@ public class Order implements Serializable {
         this.quantity = quantity;
     }
 
-    
     public String getTicker() { return ticker; }
     public double getPrice() { return price; }
     public int getQuantity() { return quantity; }
     public String getType() { return type; }
+
+    // Allows the Order Book to deduct shares after a trade 
+    public void setQuantity(int newQuantity) { this.quantity = newQuantity; }
+    // -----------------------------------------------------------------
 
     @Override
     public String toString() {

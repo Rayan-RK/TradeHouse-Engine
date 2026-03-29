@@ -1,4 +1,4 @@
-// The central matching engine that safely stores and organizes active active bids and asks.
+// The central matching engine that safely stores and organizes active bids and asks.
 package server;
 
 import shared.Order;
@@ -31,13 +31,51 @@ public class OrderBook {
     }
 
     /**
-     * Checks if the highest buyer is willing to pay the lowest seller's price.
+     * The core trading algorithm. Sorts orders by best price and executes overlapping trades.
      */
     private synchronized void attemptMatch() {
-        // MVP logic: Just checking if we have at least one buyer and one seller
-        if (!buyOrders.isEmpty() && !sellOrders.isEmpty()) {
-            System.out.println("[ORDER BOOK ENGINE] Buyers and Sellers detected. Ready to match prices!");
-            // We will add the actual price-matching math in the next commit!
+        if (buyOrders.isEmpty() || sellOrders.isEmpty()) return;
+
+        // 1. Sort lists: Highest Bids first, Lowest Asks first
+        buyOrders.sort((b1, b2) -> Double.compare(b2.getPrice(), b1.getPrice()));
+        sellOrders.sort((s1, s2) -> Double.compare(s1.getPrice(), s2.getPrice()));
+
+        // 2. Loop through every buyer
+        for (int i = 0; i < buyOrders.size(); i++) {
+            Order bid = buyOrders.get(i);
+
+            // 3. Look for a matching seller
+            for (int j = 0; j < sellOrders.size(); j++) {
+                Order ask = sellOrders.get(j);
+
+                // Check: Same Ticker AND Buyer price >= Seller price
+                if (bid.getTicker().equals(ask.getTicker()) && bid.getPrice() >= ask.getPrice()) {
+                    
+                    // Match found! Calculate how many shares actually trade
+                    int tradedShares = Math.min(bid.getQuantity(), ask.getQuantity());
+
+                    System.out.println("\n=========================================");
+                    System.out.printf("[TRADE EXECUTED] %s: %d shares @ $%.2f%n", bid.getTicker(), tradedShares, ask.getPrice());
+                    System.out.println("=========================================\n");
+
+                    // Deduct the traded shares from both parties
+                    bid.setQuantity(bid.getQuantity() - tradedShares);
+                    ask.setQuantity(ask.getQuantity() - tradedShares);
+
+                    // If the seller is out of shares, remove them from the book
+                    if (ask.getQuantity() == 0) {
+                        sellOrders.remove(j);
+                        j--; // Adjust index so we don't skip the next item
+                    }
+
+                    // If the buyer is out of shares, remove them and break to the next buyer
+                    if (bid.getQuantity() == 0) {
+                        buyOrders.remove(i);
+                        i--; // Adjust index
+                        break; 
+                    }
+                }
+            }
         }
     }
 }
