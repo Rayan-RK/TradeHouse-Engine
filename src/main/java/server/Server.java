@@ -1,22 +1,22 @@
-// The main entry point that listens for incoming connections and manages the thread pool.
+// The main entry point that listens for incoming connections and manages the thread pool and broadcasts.
 package server;
 
 import java.io.IOException;
+import java.io.PrintWriter;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 public class Server {
-    // Standard port for our TradeHouse server
     private static final int PORT = 8080; 
-    
-    // A thread pool handles multiple concurrent clients efficiently
     private static final ExecutorService pool = Executors.newFixedThreadPool(100);
 
-    // --- NEW: The single, shared market for all clients ---
     public static final OrderBook market = new OrderBook();
-    // ------------------------------------------------------
+
+    // Thread-safe list of all active client output streams for real-time broadcasts
+    public static final CopyOnWriteArrayList<PrintWriter> clientOutputs = new CopyOnWriteArrayList<>();
 
     public static void main(String[] args) {
         System.out.println("[SERVER] TradeHouse Server is booting up...");
@@ -24,17 +24,24 @@ public class Server {
         try (ServerSocket serverSocket = new ServerSocket(PORT)) {
             System.out.println("[SERVER] Listening for connections on port " + PORT + "...");
 
-            // Infinite loop to constantly accept new clients
             while (true) {
                 Socket clientSocket = serverSocket.accept();
                 System.out.println("[SERVER] New Agent Connected: " + clientSocket.getInetAddress().getHostAddress());
 
-                // Hand the connection off to our new ClientHandler thread
                 ClientHandler clientThread = new ClientHandler(clientSocket);
                 pool.execute(clientThread); 
             }
         } catch (IOException e) {
             System.err.println("[SERVER FATAL ERROR] " + e.getMessage());
+        }
+    }
+
+    /**
+     * Sends a message to every single connected client simultaneously.
+     */
+    public static void broadcast(String message) {
+        for (PrintWriter writer : clientOutputs) {
+            writer.println(message);
         }
     }
 }

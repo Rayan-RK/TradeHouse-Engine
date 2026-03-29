@@ -1,4 +1,4 @@
-// A standalone script used to test the Order Book matching logic.
+// A standalone script used to test the Order Book matching and Real-Time Broadcasting.
 package client;
 
 import java.io.BufferedReader;
@@ -21,26 +21,34 @@ public class TestClient {
             System.out.println("[TEST CLIENT] Connected to TradeHouse Server!");
 
             // 1. Read the welcome message
-            String welcomeMessage = in.readLine();
-            System.out.println("Server says: " + welcomeMessage);
+            System.out.println("Server says: " + in.readLine());
 
-            // 2. Send the BUY order (Bid) - Willing to pay $150
+            // 2. Send the BUY order (Bid)
             String buyCommand = "BUY:AAPL:150.00:10";
             System.out.println("\n[TEST CLIENT] Sending BUY order: " + buyCommand);
             out.println(buyCommand);
-            System.out.println("Server replied: " + in.readLine());
-
-            // 3. Send the SELL order (Ask) - Willing to sell for $145
-            // This overlaps with the buyer and should trigger a trade on the server!
+            
+            // 3. Send the SELL order (Ask) to trigger the match
             String sellCommand = "SELL:AAPL:145.00:5";
-            System.out.println("\n[TEST CLIENT] Sending SELL order: " + sellCommand);
+            System.out.println("[TEST CLIENT] Sending SELL order: " + sellCommand);
             out.println(sellCommand);
-            System.out.println("Server replied: " + in.readLine());
 
-            System.out.println("\n[TEST CLIENT] Test complete. Check the SERVER terminal to see the trade banner!");
+            // --- NEW: BROADCAST LISTENER LOOP ---
+            System.out.println("\n[TEST CLIENT] Waiting for Server Broadcasts...");
+            
+            // We listen for the next 3 messages from the server
+            for (int i = 0; i < 3; i++) {
+                String serverMsg = in.readLine();
+                if (serverMsg != null) {
+                    System.out.println(">>> BROADCAST RECEIVED: " + serverMsg);
+                }
+            }
+            // ------------------------------------
+
+            System.out.println("\n[TEST CLIENT] Test complete. If you saw 'MARKET_UPDATE', broadcasting is working!");
 
         } catch (IOException e) {
-            System.err.println("[TEST CLIENT ERROR] Could not connect to server. Is it running?");
+            System.err.println("[TEST CLIENT ERROR] Could not connect to server.");
         }
     }
 }

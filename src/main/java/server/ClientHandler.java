@@ -17,33 +17,33 @@ public class ClientHandler implements Runnable {
 
     @Override
     public void run() {
-        try (BufferedReader in = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
-             PrintWriter out = new PrintWriter(clientSocket.getOutputStream(), true)) {
+        PrintWriter out = null;
+        try (BufferedReader in = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()))) {
+            out = new PrintWriter(clientSocket.getOutputStream(), true);
 
-            // Send welcome message
+            // Register this client's output stream for global broadcasts
+            Server.clientOutputs.add(out);
             out.println("CONNECTION_SUCCESS: Welcome to TradeHouse.");
 
             String clientMessage;
-            // Keep reading messages as long as the client is connected
             while ((clientMessage = in.readLine()) != null) {
                 System.out.println("[SERVER] Received from client: " + clientMessage);
-
-                // --- PARSING & ORDER BOOK LOGIC ---
                 Order newOrder = CommandParser.parseOrder(clientMessage);
                 
                 if (newOrder != null) {
-                    // Send the valid order to the central market!
                     Server.market.processOrder(newOrder);
                     out.println("SERVER_ACK: Order received and sent to Order Book.");
                 } else {
-                    out.println("SERVER_ERROR: Invalid command format. Use ACTION:TICKER:PRICE:QUANTITY");
+                    out.println("SERVER_ERROR: Invalid command format.");
                 }
-                // ----------------------------------
             }
 
         } catch (IOException e) {
             System.err.println("[SERVER ERROR] Client connection issue: " + e.getMessage());
         } finally {
+            if (out != null) {
+                Server.clientOutputs.remove(out);
+            }
             try {
                 System.out.println("[SERVER] Closing client connection.");
                 clientSocket.close();
