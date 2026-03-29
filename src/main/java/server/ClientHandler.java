@@ -5,11 +5,10 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.net.Socket;
+import shared.Order;
 
 public class ClientHandler implements Runnable {
     private Socket clientSocket;
-    private BufferedReader in;
-    private PrintWriter out;
 
     public ClientHandler(Socket socket) {
         this.clientSocket = socket;
@@ -17,34 +16,36 @@ public class ClientHandler implements Runnable {
 
     @Override
     public void run() {
-        try {
-            // Setup the I/O streams for this specific client
-            in = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
-            out = new PrintWriter(clientSocket.getOutputStream(), true);
+        try (BufferedReader in = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
+             PrintWriter out = new PrintWriter(clientSocket.getOutputStream(), true)) {
 
-            // Send a welcome message to the client as soon as they connect
+            // Send welcome message
             out.println("CONNECTION_SUCCESS: Welcome to TradeHouse.");
 
             String clientMessage;
-            // Infinite loop to listen for incoming messages from this client
+            // Keep reading messages as long as the client is connected
             while ((clientMessage = in.readLine()) != null) {
-                System.out.println("[INCOMING] User says: " + clientMessage);
+                System.out.println("[SERVER] Received from client: " + clientMessage);
+
+                // --- NEW PARSING LOGIC ---
+                Order newOrder = CommandParser.parseOrder(clientMessage);
                 
-                // For now, just echo it back so we know the connection is live.
-                out.println("SERVER_ECHO: " + clientMessage);
+                if (newOrder != null) {
+                    out.println("SERVER_ACK: Successfully parsed " + newOrder.toString());
+                } else {
+                    out.println("SERVER_ERROR: Invalid command format. Use ACTION:TICKER:PRICE:QUANTITY");
+                }
+                // -------------------------
             }
 
         } catch (IOException e) {
-            System.out.println("[SERVER] Client disconnected abruptly.");
+            System.err.println("[SERVER ERROR] Client connection issue: " + e.getMessage());
         } finally {
             try {
-                // Always clean up resources when the client leaves
-                if (in != null) in.close();
-                if (out != null) out.close();
-                if (clientSocket != null) clientSocket.close();
-                System.out.println("[SERVER] Connection closed and thread released.");
+                System.out.println("[SERVER] Closing client connection.");
+                clientSocket.close();
             } catch (IOException e) {
-                e.printStackTrace();
+                System.err.println("[SERVER ERROR] Could not close socket.");
             }
         }
     }
