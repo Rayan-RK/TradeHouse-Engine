@@ -32,6 +32,7 @@ public class OrderBook {
 
                 if (bid.getTicker().equals(ask.getTicker()) && bid.getPrice() >= ask.getPrice()) {
                     int tradedShares = Math.min(bid.getQuantity(), ask.getQuantity());
+                    Server.fileManager.appendTrade(bid, ask, ask.getPrice(), tradedShares);
 
                     // --- BROADCAST THE TRADE ---
                     String broadcastMsg = String.format("MARKET_UPDATE:%s:%.2f", bid.getTicker(), ask.getPrice());
