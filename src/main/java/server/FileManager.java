@@ -7,6 +7,8 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Owns ledger file setup and will later handle trade persistence and state restore.
@@ -51,6 +53,24 @@ public class FileManager {
             writer.newLine();
         } catch (IOException e) {
             throw new IllegalStateException("Unable to append trade to ledger at " + ledgerPath.toAbsolutePath(), e);
+        }
+    }
+
+    public List<TradeRecord> loadTradeHistory() {
+        try {
+            List<String> lines = Files.readAllLines(ledgerPath);
+            List<TradeRecord> tradeRecords = new ArrayList<>();
+
+            for (String line : lines) {
+                if (line.isBlank() || line.equals(TradeRecord.CSV_HEADER)) {
+                    continue;
+                }
+                tradeRecords.add(TradeRecord.fromCsvRow(line));
+            }
+
+            return tradeRecords;
+        } catch (IOException e) {
+            throw new IllegalStateException("Unable to load ledger history from " + ledgerPath.toAbsolutePath(), e);
         }
     }
 

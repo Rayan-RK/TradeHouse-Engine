@@ -7,6 +7,7 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -26,6 +27,8 @@ public class Server {
     public static void main(String[] args) {
         System.out.println("[SERVER] TradeHouse Server is booting up...");
         fileManager.initializeStorage();
+        List<TradeRecord> previousTrades = fileManager.loadTradeHistory();
+        System.out.println("[SERVER] Loaded " + previousTrades.size() + " historical trade(s) from the ledger.");
 
         // --- NEW: Start the Market Maker Bots ---
         // We run this in a separate thread so it doesn't block the Socket listener
