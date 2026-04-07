@@ -4,11 +4,14 @@ package server;
 import shared.Order;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 public class OrderBook {
     private final List<Order> buyOrders = Collections.synchronizedList(new ArrayList<>());
     private final List<Order> sellOrders = Collections.synchronizedList(new ArrayList<>());
+    private final Map<String, Double> currentPrices = Collections.synchronizedMap(new HashMap<>());
 
     public void processOrder(Order newOrder) {
         if (newOrder.getType().equals("BUY")) {
@@ -33,6 +36,7 @@ public class OrderBook {
                 if (bid.getTicker().equals(ask.getTicker()) && bid.getPrice() >= ask.getPrice()) {
                     int tradedShares = Math.min(bid.getQuantity(), ask.getQuantity());
                     Server.fileManager.appendTrade(bid, ask, ask.getPrice(), tradedShares);
+                    currentPrices.put(bid.getTicker(), ask.getPrice());
 
                     // --- BROADCAST THE TRADE ---
                     String broadcastMsg = String.format("MARKET_UPDATE:%s:%.2f", bid.getTicker(), ask.getPrice());
@@ -51,5 +55,16 @@ public class OrderBook {
                 }
             }
         }
+    }
+
+    public synchronized void restoreLastKnownPrices(List<TradeRecord> tradeHistory) {
+        currentPrices.clear();
+        for (TradeRecord tradeRecord : tradeHistory) {
+            currentPrices.put(tradeRecord.getTicker(), tradeRecord.getPrice());
+        }
+    }
+
+    public synchronized Map<String, Double> getCurrentPricesSnapshot() {
+        return new HashMap<>(currentPrices);
     }
 }

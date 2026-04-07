@@ -28,7 +28,9 @@ public class Server {
         System.out.println("[SERVER] TradeHouse Server is booting up...");
         fileManager.initializeStorage();
         List<TradeRecord> previousTrades = fileManager.loadTradeHistory();
+        market.restoreLastKnownPrices(previousTrades);
         System.out.println("[SERVER] Loaded " + previousTrades.size() + " historical trade(s) from the ledger.");
+        System.out.println("[SERVER] Restored last known prices for " + market.getCurrentPricesSnapshot().size() + " ticker(s).");
 
         // --- NEW: Start the Market Maker Bots ---
         // We run this in a separate thread so it doesn't block the Socket listener
