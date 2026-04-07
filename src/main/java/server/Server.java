@@ -5,6 +5,8 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -12,14 +14,18 @@ import java.util.concurrent.Executors;
 public class Server {
     private static final int PORT = 8080; 
     private static final ExecutorService pool = Executors.newFixedThreadPool(100);
+    private static final Path DATA_DIRECTORY = Paths.get("data");
+    private static final Path LEDGER_PATH = DATA_DIRECTORY.resolve("ledger.csv");
 
     public static final OrderBook market = new OrderBook();
+    public static final FileManager fileManager = new FileManager(LEDGER_PATH);
 
     // Thread-safe list of all active client output streams for real-time broadcasts
     public static final CopyOnWriteArrayList<PrintWriter> clientOutputs = new CopyOnWriteArrayList<>();
 
     public static void main(String[] args) {
         System.out.println("[SERVER] TradeHouse Server is booting up...");
+        fileManager.initializeStorage();
 
         // --- NEW: Start the Market Maker Bots ---
         // We run this in a separate thread so it doesn't block the Socket listener
