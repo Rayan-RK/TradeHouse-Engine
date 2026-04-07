@@ -36,6 +36,8 @@ public class FileManager {
 
             if (Files.size(ledgerPath) == 0) {
                 Files.writeString(ledgerPath, TradeRecord.CSV_HEADER + System.lineSeparator(), StandardOpenOption.WRITE);
+            } else {
+                migrateLedgerIfNeeded();
             }
         } catch (IOException e) {
             throw new IllegalStateException("Unable to initialize ledger storage at " + ledgerPath.toAbsolutePath(), e);
@@ -62,7 +64,7 @@ public class FileManager {
             List<TradeRecord> tradeRecords = new ArrayList<>();
 
             for (String line : lines) {
-                if (line.isBlank() || line.equals(TradeRecord.CSV_HEADER)) {
+                if (line.isBlank() || line.startsWith("timestamp,")) {
                     continue;
                 }
                 tradeRecords.add(TradeRecord.fromCsvRow(line));
@@ -72,6 +74,34 @@ public class FileManager {
         } catch (IOException e) {
             throw new IllegalStateException("Unable to load ledger history from " + ledgerPath.toAbsolutePath(), e);
         }
+    }
+
+    private void migrateLedgerIfNeeded() throws IOException {
+        List<String> lines = Files.readAllLines(ledgerPath);
+        if (lines.isEmpty()) {
+            return;
+        }
+
+        if (TradeRecord.CSV_HEADER.equals(lines.get(0))) {
+            return;
+        }
+
+        List<TradeRecord> tradeRecords = new ArrayList<>();
+        for (String line : lines) {
+            if (line.isBlank() || line.startsWith("timestamp,")) {
+                continue;
+            }
+            tradeRecords.add(TradeRecord.fromCsvRow(line));
+        }
+
+        List<String> migratedLines = new ArrayList<>();
+        migratedLines.add(TradeRecord.CSV_HEADER);
+        for (TradeRecord tradeRecord : tradeRecords) {
+            migratedLines.add(tradeRecord.toCsvRow());
+        }
+
+        Files.write(ledgerPath, migratedLines, StandardOpenOption.TRUNCATE_EXISTING, StandardOpenOption.WRITE);
+        System.out.println("[FILE MANAGER] Migrated legacy ledger format to include user columns.");
     }
 
     public Path getLedgerPath() {

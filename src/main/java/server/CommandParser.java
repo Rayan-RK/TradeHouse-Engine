@@ -7,27 +7,27 @@ public class CommandParser {
 
     /**
      * Translates a raw socket string into an Order object.
-     * Expected format: "ACTION:TICKER:PRICE:QUANTITY" (e.g., "BUY:AAPL:150.00:10")
+     * Supported formats:
+     * "ACTION:TICKER:PRICE:QUANTITY" (legacy)
+     * "USERNAME:ACTION:TICKER:PRICE:QUANTITY"
      */
     public static Order parseOrder(String rawCommand) {
         try {
-            // Split the string by the colon character
             String[] parts = rawCommand.split(":");
-
-            // Check if we have exactly 4 pieces of data
-            if (parts.length != 4) {
+            if (parts.length != 4 && parts.length != 5) {
                 System.err.println("[PARSER ERROR] Invalid command format: " + rawCommand);
                 return null;
             }
 
-            // Extract and convert the data
-            String action = parts[0].toUpperCase();
-            String ticker = parts[1].toUpperCase();
-            double price = Double.parseDouble(parts[2]);
-            int quantity = Integer.parseInt(parts[3]);
+            String username = parts.length == 5 ? parts[0].toUpperCase() : Order.UNKNOWN_USER;
+            int actionIndex = parts.length == 5 ? 1 : 0;
 
-            // Create and return the new Order object
-            return new Order(action, ticker, price, quantity);
+            String action = parts[actionIndex].toUpperCase();
+            String ticker = parts[actionIndex + 1].toUpperCase();
+            double price = Double.parseDouble(parts[actionIndex + 2]);
+            int quantity = Integer.parseInt(parts[actionIndex + 3]);
+
+            return new Order(username, action, ticker, price, quantity);
 
         } catch (NumberFormatException e) {
             System.err.println("[PARSER ERROR] Invalid numbers in command: " + rawCommand);
