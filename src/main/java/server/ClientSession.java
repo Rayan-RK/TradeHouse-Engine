@@ -10,11 +10,13 @@ public class ClientSession {
     private final Socket socket;
     private final PrintWriter writer;
     private final String remoteAddress;
+    private volatile long lastPongTimeMillis;
 
     public ClientSession(Socket socket, PrintWriter writer) {
         this.socket = socket;
         this.writer = writer;
         this.remoteAddress = socket.getInetAddress().getHostAddress();
+        this.lastPongTimeMillis = System.currentTimeMillis();
     }
 
     public Socket getSocket() {
@@ -27,5 +29,17 @@ public class ClientSession {
 
     public String getRemoteAddress() {
         return remoteAddress;
+    }
+
+    public void sendMessage(String message) {
+        writer.println(message);
+    }
+
+    public void recordPong() {
+        lastPongTimeMillis = System.currentTimeMillis();
+    }
+
+    public long getLastPongTimeMillis() {
+        return lastPongTimeMillis;
     }
 }

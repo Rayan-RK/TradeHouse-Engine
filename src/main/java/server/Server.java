@@ -9,6 +9,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.List;
 import java.util.Map;
+import java.util.ArrayList;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
@@ -79,5 +80,9 @@ public class Server {
             System.out.println("[SERVER] Removed client session for " + session.getRemoteAddress());
         }
         System.out.println("[SERVER] Active client count: " + activeClients.size());
+    }
+
+    public static List<ClientSession> getActiveClientSessions() {
+        return new ArrayList<>(activeClients.values());
     }
 }

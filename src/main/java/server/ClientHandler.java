@@ -29,6 +29,18 @@ public class ClientHandler implements Runnable {
             String clientMessage;
             while ((clientMessage = in.readLine()) != null) {
                 System.out.println("[SERVER] Received from client: " + clientMessage);
+
+                if ("PONG".equalsIgnoreCase(clientMessage)) {
+                    session.recordPong();
+                    System.out.println("[SERVER] Heartbeat acknowledged by " + session.getRemoteAddress());
+                    continue;
+                }
+
+                if ("PING".equalsIgnoreCase(clientMessage)) {
+                    session.sendMessage("PONG");
+                    continue;
+                }
+
                 Order newOrder = CommandParser.parseOrder(clientMessage);
                 
                 if (newOrder != null) {
