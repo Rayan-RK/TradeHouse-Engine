@@ -9,7 +9,7 @@ import java.net.Socket;
 import shared.Order;
 
 public class ClientHandler implements Runnable {
-    private Socket clientSocket;
+    private final Socket clientSocket;
 
     public ClientHandler(Socket socket) {
         this.clientSocket = socket;
@@ -20,9 +20,10 @@ public class ClientHandler implements Runnable {
         PrintWriter out = null;
         try (BufferedReader in = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()))) {
             out = new PrintWriter(clientSocket.getOutputStream(), true);
+            ClientSession session = new ClientSession(clientSocket, out);
 
-            // Register this client's output stream for global broadcasts
-            Server.clientOutputs.add(out);
+            // Register this client centrally so future heartbeat cleanup can target live sessions.
+            Server.registerClient(session);
             out.println("CONNECTION_SUCCESS: Welcome to TradeHouse.");
 
             String clientMessage;
@@ -41,9 +42,7 @@ public class ClientHandler implements Runnable {
         } catch (IOException e) {
             System.err.println("[SERVER ERROR] Client connection issue: " + e.getMessage());
         } finally {
-            if (out != null) {
-                Server.clientOutputs.remove(out);
-            }
+            Server.removeClient(clientSocket);
             try {
                 System.out.println("[SERVER] Closing client connection.");
                 clientSocket.close();

@@ -8,7 +8,9 @@ import java.net.Socket;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -21,7 +23,8 @@ public class Server {
     public static final OrderBook market = new OrderBook();
     public static final FileManager fileManager = new FileManager(LEDGER_PATH);
 
-    // Thread-safe list of all active client output streams for real-time broadcasts
+    // Thread-safe registries for active clients and their broadcast writers.
+    public static final Map<Socket, ClientSession> activeClients = new ConcurrentHashMap<>();
     public static final CopyOnWriteArrayList<PrintWriter> clientOutputs = new CopyOnWriteArrayList<>();
 
     public static void main(String[] args) {
@@ -61,5 +64,20 @@ public class Server {
         for (PrintWriter writer : clientOutputs) {
             writer.println(message);
         }
+    }
+
+    public static void registerClient(ClientSession session) {
+        activeClients.put(session.getSocket(), session);
+        clientOutputs.add(session.getWriter());
+        System.out.println("[SERVER] Active client count: " + activeClients.size());
+    }
+
+    public static void removeClient(Socket clientSocket) {
+        ClientSession session = activeClients.remove(clientSocket);
+        if (session != null) {
+            clientOutputs.remove(session.getWriter());
+            System.out.println("[SERVER] Removed client session for " + session.getRemoteAddress());
+        }
+        System.out.println("[SERVER] Active client count: " + activeClients.size());
     }
 }
