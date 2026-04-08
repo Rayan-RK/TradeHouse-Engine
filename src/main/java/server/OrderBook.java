@@ -67,4 +67,24 @@ public class OrderBook {
     public synchronized Map<String, Double> getCurrentPricesSnapshot() {
         return new HashMap<>(currentPrices);
     }
+
+    public synchronized void cancelOrdersForUser(String username) {
+        if (username == null || username.isBlank()) {
+            return;
+        }
+
+        int removedBuyOrders = removeOrdersByUsername(buyOrders, username);
+        int removedSellOrders = removeOrdersByUsername(sellOrders, username);
+
+        if (removedBuyOrders > 0 || removedSellOrders > 0) {
+            System.out.println("[ORDER BOOK] Cancelled " + (removedBuyOrders + removedSellOrders)
+                    + " open order(s) for disconnected user " + username + ".");
+        }
+    }
+
+    private int removeOrdersByUsername(List<Order> orders, String username) {
+        int before = orders.size();
+        orders.removeIf(order -> username.equalsIgnoreCase(order.getUsername()));
+        return before - orders.size();
+    }
 }

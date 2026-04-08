@@ -44,6 +44,9 @@ public class ClientHandler implements Runnable {
                 Order newOrder = CommandParser.parseOrder(clientMessage);
                 
                 if (newOrder != null) {
+                    if (!Order.UNKNOWN_USER.equals(newOrder.getUsername())) {
+                        session.setUsername(newOrder.getUsername());
+                    }
                     Server.market.processOrder(newOrder);
                     out.println("SERVER_ACK: Order received and sent to Order Book.");
                 } else {

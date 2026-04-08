@@ -11,6 +11,7 @@ public class ClientSession {
     private final PrintWriter writer;
     private final String remoteAddress;
     private volatile long lastPongTimeMillis;
+    private volatile String username;
 
     public ClientSession(Socket socket, PrintWriter writer) {
         this.socket = socket;
@@ -41,5 +42,13 @@ public class ClientSession {
 
     public long getLastPongTimeMillis() {
         return lastPongTimeMillis;
+    }
+
+    public void setUsername(String username) {
+        this.username = username;
+    }
+
+    public String getUsername() {
+        return username;
     }
 }

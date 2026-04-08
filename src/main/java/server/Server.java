@@ -14,10 +14,15 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 
 public class Server {
     private static final int PORT = 8080; 
+    private static final long HEARTBEAT_INTERVAL_SECONDS = 5;
+    private static final long HEARTBEAT_TIMEOUT_MILLIS = 15000;
     private static final ExecutorService pool = Executors.newFixedThreadPool(100);
+    private static final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
     private static final Path DATA_DIRECTORY = Paths.get("data");
     private static final Path LEDGER_PATH = DATA_DIRECTORY.resolve("ledger.csv");
 
@@ -35,6 +40,7 @@ public class Server {
         market.restoreLastKnownPrices(previousTrades);
         System.out.println("[SERVER] Loaded " + previousTrades.size() + " historical trade(s) from the ledger.");
         System.out.println("[SERVER] Restored last known prices for " + market.getCurrentPricesSnapshot().size() + " ticker(s).");
+        startHeartbeatMonitor();
 
         // --- NEW: Start the Market Maker Bots ---
         // We run this in a separate thread so it doesn't block the Socket listener
@@ -84,5 +90,33 @@ public class Server {
 
     public static List<ClientSession> getActiveClientSessions() {
         return new ArrayList<>(activeClients.values());
+    }
+
+    private static void startHeartbeatMonitor() {
+        scheduler.scheduleAtFixedRate(() -> {
+            long now = System.currentTimeMillis();
+
+            for (ClientSession session : getActiveClientSessions()) {
+                session.sendMessage("PING");
+
+                if (now - session.getLastPongTimeMillis() > HEARTBEAT_TIMEOUT_MILLIS) {
+                    System.out.println("[HEARTBEAT] Client timed out: " + session.getRemoteAddress());
+                    disconnectStaleClient(session);
+                }
+            }
+        }, HEARTBEAT_INTERVAL_SECONDS, HEARTBEAT_INTERVAL_SECONDS, TimeUnit.SECONDS);
+    }
+
+    private static void disconnectStaleClient(ClientSession session) {
+        String username = session.getUsername();
+        if (username != null && !username.isBlank()) {
+            market.cancelOrdersForUser(username);
+        }
+
+        try {
+            session.getSocket().close();
+        } catch (IOException e) {
+            System.err.println("[HEARTBEAT] Failed to close stale client socket: " + e.getMessage());
+        }
     }
 }
