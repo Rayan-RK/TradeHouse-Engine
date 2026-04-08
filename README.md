@@ -1,33 +1,60 @@
-# TradeHouse (High-Frequency Trading Exchange)
+# TradeHouse
 
-TradeHouse is a multi-threaded, live-market simulation where users can buy and sell simulated assets in real-time. This project demonstrates a robust client-server architecture using Java Sockets, multi-threading, and a custom matching engine.
+TradeHouse is a multi-threaded Java client/server market simulation. The server accepts multiple socket clients, matches buy and sell orders, persists completed trades to a CSV ledger, restores market prices from that ledger on startup, and uses heartbeat checks to remove unresponsive clients.
 
----
+## Project Structure
 
-## 🏗️ Project Structure
+- `src/main/java/server/`: Server, client handlers, order book, bots, persistence, and heartbeat logic
+- `src/main/java/shared/`: Shared `Order` model
+- `src/main/java/client/`: `TestClient` backend validation client
+- `data/`: Server-side ledger storage
 
-- **`src/main/java/server/`**: Contains the `Server`, `ClientHandler`, `CommandParser`, `OrderBook`, and the automated `BotEngine`.
-- **`src/main/java/shared/`**: Contains the `Order` model used by both the Client and Server.
-- **`src/main/java/client/`**: Contains the `TestClient` used for backend validation.
+## Compile
 
----
+On Windows PowerShell:
 
-## 🚀 Live Trade Matching Demo (Backend)
+```powershell
+if (Test-Path bin) { Get-ChildItem bin -Recurse -File | Remove-Item -Force }
+javac -d bin src/main/java/shared/*.java src/main/java/server/*.java src/main/java/client/*.java
+```
 
-This demo confirms that the **Multi-threaded Server**, **Protocol Parser**, and **Matching Engine** are all functioning correctly according to the project requirements.
+## Run
 
-### 🛠️ How to Run the Demo
+Start the server in one terminal:
 
-1. **Clean & Compile:**
-   Open your terminal and run the following to wipe old classes and recompile:
-   ```bash
-   rm -rf bin/*
-   javac -d bin src/main/java/shared/*.java src/main/java/server/*.java src/main/java/client/*.java
-   ```
-2. Launch the Exchange (Terminal 1):
-   Start the central server. The Market Maker Bots will start automatically:
-   java -cp bin server.Server
+```powershell
+java -cp bin server.Server
+```
 
-3. Run the Broadcaster Test (Terminal 2):
-   Execute the test script to see the server "shout" updates back to the client:
-   java -cp bin client.TestClien
+Start the backend test client in another terminal:
+
+```powershell
+java -cp bin client.TestClient
+```
+
+## Supported Order Formats
+
+The server currently accepts both formats below:
+
+- `BUY:AAPL:150.00:10`
+- `MOHAMMAD:BUY:AAPL:150.00:10`
+
+The second format includes a username and is used by the persistence and heartbeat cleanup logic to associate orders with a client identity.
+
+## Persistence
+
+- Completed trades are appended to `data/ledger.csv`
+- If the ledger does not exist, the server creates it on startup
+- If an older ledger format is found, the server migrates it to the current CSV schema
+- On startup, the server reads the ledger and restores the last known traded price for each ticker
+
+## Heartbeats
+
+- The server sends `PING` to active clients every 5 seconds
+- Clients should reply with `PONG`
+- If a client does not respond within 15 seconds, the server disconnects it
+- If that client submitted user-tagged orders, the server cancels that user's open orders
+
+## Current Scope
+
+This repository currently contains the backend server, a socket test client, persistence logic, and heartbeat fault-tolerance work. The JavaFX GUI described in the charter is planned separately from the backend validation flow documented here.
