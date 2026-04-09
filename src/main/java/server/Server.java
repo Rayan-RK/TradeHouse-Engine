@@ -25,9 +25,12 @@ public class Server {
     private static final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
     private static final Path DATA_DIRECTORY = Paths.get("data");
     private static final Path LEDGER_PATH = DATA_DIRECTORY.resolve("ledger.csv");
+    private static final Path ACCOUNT_SNAPSHOT_PATH = DATA_DIRECTORY.resolve("accounts.csv");
+    private static final Path OPEN_ORDERS_PATH = DATA_DIRECTORY.resolve("open_orders.csv");
 
     public static final OrderBook market = new OrderBook();
-    public static final FileManager fileManager = new FileManager(LEDGER_PATH);
+    public static final AccountManager accountManager = new AccountManager();
+    public static final FileManager fileManager = new FileManager(LEDGER_PATH, ACCOUNT_SNAPSHOT_PATH, OPEN_ORDERS_PATH);
 
     // Thread-safe registries for active clients and their broadcast writers.
     public static final Map<Socket, ClientSession> activeClients = new ConcurrentHashMap<>();
@@ -37,8 +40,16 @@ public class Server {
         System.out.println("[SERVER] TradeHouse Server is booting up...");
         fileManager.initializeStorage();
         List<TradeRecord> previousTrades = fileManager.loadTradeHistory();
+        List<UserAccount> restoredAccounts = fileManager.loadAccountState();
+        List<shared.Order> restoredOpenOrders = fileManager.loadOpenOrders();
+
+        accountManager.restoreAccounts(restoredAccounts);
+        market.restoreOpenOrders(restoredOpenOrders);
+        accountManager.rebuildReservations(restoredOpenOrders);
         market.restoreLastKnownPrices(previousTrades);
         System.out.println("[SERVER] Loaded " + previousTrades.size() + " historical trade(s) from the ledger.");
+        System.out.println("[SERVER] Restored " + restoredAccounts.size() + " account snapshot(s).");
+        System.out.println("[SERVER] Restored " + restoredOpenOrders.size() + " open order(s).");
         System.out.println("[SERVER] Restored last known prices for " + market.getCurrentPricesSnapshot().size() + " ticker(s).");
         startHeartbeatMonitor();
 

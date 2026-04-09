@@ -13,16 +13,17 @@ public class OrderBook {
     private final List<Order> sellOrders = Collections.synchronizedList(new ArrayList<>());
     private final Map<String, Double> currentPrices = Collections.synchronizedMap(new HashMap<>());
 
-    public void processOrder(Order newOrder) {
+    public synchronized void processOrder(Order newOrder) {
         if (newOrder.getType().equals("BUY")) {
             buyOrders.add(newOrder);
         } else if (newOrder.getType().equals("SELL")) {
             sellOrders.add(newOrder);
         }
         attemptMatch();
+        persistOpenOrders();
     }
 
-    private synchronized void attemptMatch() {
+    private void attemptMatch() {
         if (buyOrders.isEmpty() || sellOrders.isEmpty()) return;
 
         buyOrders.sort((b1, b2) -> Double.compare(b2.getPrice(), b1.getPrice()));
@@ -35,6 +36,7 @@ public class OrderBook {
 
                 if (bid.getTicker().equals(ask.getTicker()) && bid.getPrice() >= ask.getPrice()) {
                     int tradedShares = Math.min(bid.getQuantity(), ask.getQuantity());
+                    Server.accountManager.applyTrade(bid, ask, ask.getPrice(), tradedShares);
                     Server.fileManager.appendTrade(bid, ask, ask.getPrice(), tradedShares);
                     currentPrices.put(bid.getTicker(), ask.getPrice());
 
@@ -55,6 +57,8 @@ public class OrderBook {
                 }
             }
         }
+
+        Server.fileManager.saveAccountState(Server.accountManager.getAccountsSnapshot());
     }
 
     public synchronized void restoreLastKnownPrices(List<TradeRecord> tradeHistory) {
@@ -73,18 +77,63 @@ public class OrderBook {
             return;
         }
 
-        int removedBuyOrders = removeOrdersByUsername(buyOrders, username);
-        int removedSellOrders = removeOrdersByUsername(sellOrders, username);
+        List<Order> removedOrders = new ArrayList<>();
+        int removedBuyOrders = removeOrdersByUsername(buyOrders, username, removedOrders);
+        int removedSellOrders = removeOrdersByUsername(sellOrders, username, removedOrders);
+
+        for (Order order : removedOrders) {
+            Server.accountManager.releaseOrderReservation(order);
+        }
 
         if (removedBuyOrders > 0 || removedSellOrders > 0) {
             System.out.println("[ORDER BOOK] Cancelled " + (removedBuyOrders + removedSellOrders)
                     + " open order(s) for disconnected user " + username + ".");
+            persistOpenOrders();
+            Server.fileManager.saveAccountState(Server.accountManager.getAccountsSnapshot());
         }
     }
 
-    private int removeOrdersByUsername(List<Order> orders, String username) {
+    private int removeOrdersByUsername(List<Order> orders, String username, List<Order> removedOrders) {
         int before = orders.size();
-        orders.removeIf(order -> username.equalsIgnoreCase(order.getUsername()));
+        orders.removeIf(order -> {
+            boolean shouldRemove = username.equalsIgnoreCase(order.getUsername());
+            if (shouldRemove) {
+                removedOrders.add(copyOrder(order));
+            }
+            return shouldRemove;
+        });
         return before - orders.size();
+    }
+
+    public synchronized void restoreOpenOrders(List<Order> restoredOrders) {
+        buyOrders.clear();
+        sellOrders.clear();
+
+        for (Order order : restoredOrders) {
+            if ("BUY".equals(order.getType())) {
+                buyOrders.add(copyOrder(order));
+            } else if ("SELL".equals(order.getType())) {
+                sellOrders.add(copyOrder(order));
+            }
+        }
+    }
+
+    public synchronized List<Order> getOpenOrdersSnapshot() {
+        List<Order> snapshot = new ArrayList<>();
+        for (Order order : buyOrders) {
+            snapshot.add(copyOrder(order));
+        }
+        for (Order order : sellOrders) {
+            snapshot.add(copyOrder(order));
+        }
+        return snapshot;
+    }
+
+    private void persistOpenOrders() {
+        Server.fileManager.saveOpenOrders(getOpenOrdersSnapshot());
+    }
+
+    private Order copyOrder(Order order) {
+        return new Order(order.getUsername(), order.getType(), order.getTicker(), order.getPrice(), order.getQuantity());
     }
 }

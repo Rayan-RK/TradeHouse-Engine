@@ -30,6 +30,11 @@ public class ClientHandler implements Runnable {
             while ((clientMessage = in.readLine()) != null) {
                 System.out.println("[SERVER] Received from client: " + clientMessage);
 
+                if (clientMessage.toUpperCase().startsWith("LOGIN:")) {
+                    handleLogin(clientMessage, session);
+                    continue;
+                }
+
                 if ("PONG".equalsIgnoreCase(clientMessage)) {
                     session.recordPong();
                     System.out.println("[SERVER] Heartbeat acknowledged by " + session.getRemoteAddress());
@@ -44,9 +49,19 @@ public class ClientHandler implements Runnable {
                 Order newOrder = CommandParser.parseOrder(clientMessage);
                 
                 if (newOrder != null) {
+                    if (Order.UNKNOWN_USER.equals(newOrder.getUsername()) && session.getUsername() != null) {
+                        newOrder = new Order(session.getUsername(), newOrder.getType(), newOrder.getTicker(), newOrder.getPrice(), newOrder.getQuantity());
+                    }
+
                     if (!Order.UNKNOWN_USER.equals(newOrder.getUsername())) {
                         session.setUsername(newOrder.getUsername());
+                        String reserveError = Server.accountManager.tryReserveForOrder(newOrder);
+                        if (reserveError != null) {
+                            out.println("SERVER_ERROR: " + reserveError);
+                            continue;
+                        }
                     }
+
                     Server.market.processOrder(newOrder);
                     out.println("SERVER_ACK: Order received and sent to Order Book.");
                 } else {
@@ -64,6 +79,26 @@ public class ClientHandler implements Runnable {
             } catch (IOException e) {
                 System.err.println("[SERVER ERROR] Could not close socket.");
             }
+        }
+    }
+
+    private void handleLogin(String clientMessage, ClientSession session) {
+        String[] parts = clientMessage.split(":");
+        if (parts.length != 3) {
+            session.sendMessage("SERVER_ERROR: LOGIN format must be LOGIN:USERNAME:STARTING_BALANCE");
+            return;
+        }
+
+        try {
+            String username = parts[1].toUpperCase();
+            double startingBalance = Double.parseDouble(parts[2]);
+
+            UserAccount account = Server.accountManager.login(username, startingBalance);
+            session.setUsername(account.getUsername());
+            Server.fileManager.saveAccountState(Server.accountManager.getAccountsSnapshot());
+            session.sendMessage(String.format("LOGIN_SUCCESS:%s:%.2f", account.getUsername(), account.getCashBalance()));
+        } catch (NumberFormatException e) {
+            session.sendMessage("SERVER_ERROR: Invalid starting balance for LOGIN.");
         }
     }
 }
