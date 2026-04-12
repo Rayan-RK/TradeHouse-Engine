@@ -1,0 +1,258 @@
+.theme-dark {
+    -app-bg: #050607;
+    -app-panel: #101214;
+    -app-panel-soft: #16191d;
+    -app-border: #2a3036;
+    -app-text: #f3f7f5;
+    -app-muted: #9ca8a4;
+    -app-accent: #18c37e;
+    -app-accent-strong: #5ee4ad;
+    -app-warning: #f3c65c;
+    -app-danger: #ff6b7a;
+    -app-input: #1b2024;
+}
+
+.theme-light {
+    -app-bg: #f4f1eb;
+    -app-panel: #fffdf8;
+    -app-panel-soft: #ece7df;
+    -app-border: #d6d0c4;
+    -app-text: #1f2523;
+    -app-muted: #6e7772;
+    -app-accent: #087e55;
+    -app-accent-strong: #0e9f6e;
+    -app-warning: #a66f00;
+    -app-danger: #ba2f45;
+    -app-input: #f7f3ec;
+}
+
+.app-root {
+    -fx-background-color: -app-bg;
+    -fx-font-family: "SF Pro Text", "Inter", "Segoe UI", Arial, sans-serif;
+    -fx-font-size: 13px;
+}
+
+.top-bar {
+    -fx-padding: 18 22;
+    -fx-background-color: -app-panel;
+    -fx-border-color: -app-border;
+    -fx-border-width: 0 0 1 0;
+}
+
+.workspace {
+    -fx-padding: 22;
+    -fx-background-color: -app-bg;
+}
+
+.app-title {
+    -fx-text-fill: -app-text;
+    -fx-font-size: 26px;
+    -fx-font-weight: 800;
+}
+
+.eyebrow,
+.form-label {
+    -fx-text-fill: -app-muted;
+    -fx-font-size: 11px;
+    -fx-font-weight: 700;
+}
+
+.section-title {
+    -fx-text-fill: -app-text;
+    -fx-font-size: 16px;
+    -fx-font-weight: 800;
+}
+
+.value-label {
+    -fx-text-fill: -app-text;
+    -fx-font-size: 15px;
+    -fx-font-weight: 700;
+}
+
+.body-text {
+    -fx-text-fill: -app-muted;
+    -fx-line-spacing: 3;
+}
+
+.surface-panel,
+.metric-tile {
+    -fx-background-color: -app-panel;
+    -fx-border-color: -app-border;
+    -fx-border-radius: 8;
+    -fx-background-radius: 8;
+}
+
+.surface-panel {
+    -fx-padding: 18;
+    -fx-spacing: 12;
+}
+
+.side-panel {
+    -fx-min-width: 260;
+}
+
+.order-ticket {
+    -fx-min-width: 280;
+}
+
+.market-panel {
+    -fx-spacing: 16;
+}
+
+.metric-strip {
+    -fx-spacing: 12;
+}
+
+.metric-tile {
+    -fx-padding: 14 16;
+}
+
+.metric-line {
+    -fx-padding: 4 0;
+}
+
+.order-form {
+    -fx-vgap: 10;
+    -fx-hgap: 10;
+}
+
+.text-field,
+.combo-box-base,
+.text-area {
+    -fx-background-color: -app-input;
+    -fx-border-color: -app-border;
+    -fx-border-radius: 8;
+    -fx-background-radius: 8;
+    -fx-text-fill: -app-text;
+    -fx-prompt-text-fill: -app-muted;
+}
+
+.text-field,
+.combo-box-base {
+    -fx-padding: 8 10;
+}
+
+.combo-box .list-cell {
+    -fx-text-fill: -app-text;
+    -fx-background-color: transparent;
+}
+
+.combo-box-popup .list-view {
+    -fx-background-color: -app-panel;
+    -fx-border-color: -app-border;
+}
+
+.combo-box-popup .list-cell {
+    -fx-text-fill: -app-text;
+    -fx-background-color: -app-panel;
+}
+
+.combo-box-popup .list-cell:hover {
+    -fx-background-color: -app-panel-soft;
+}
+
+.event-log {
+    -fx-control-inner-background: -app-input;
+    -fx-highlight-fill: -app-accent;
+    -fx-highlight-text-fill: -app-bg;
+    -fx-font-family: "SF Mono", Menlo, Consolas, monospace;
+    -fx-font-size: 12px;
+}
+
+.primary-button,
+.theme-toggle,
+.status-pill {
+    -fx-background-radius: 8;
+    -fx-border-radius: 8;
+    -fx-font-weight: 800;
+}
+
+.button,
+.toggle-button {
+    -fx-cursor: hand;
+}
+
+.primary-button {
+    -fx-background-color: -app-accent;
+    -fx-text-fill: #03100b;
+    -fx-padding: 11 14;
+}
+
+.theme-light .primary-button {
+    -fx-background-color: rgba(0, 0, 0, 0.815);
+    -fx-text-fill: #f4f4f4;
+}
+
+.primary-button:hover {
+    -fx-background-color: -app-accent-strong;
+}
+
+.theme-light .primary-button:hover {
+    -fx-background-color: #2f405d;
+}
+
+.primary-button:disabled {
+    -fx-opacity: 0.45;
+}
+
+.theme-toggle {
+    -fx-background-color: -app-panel-soft;
+    -fx-border-color: -app-border;
+    -fx-text-fill: -app-text;
+    -fx-padding: 8 14;
+}
+
+.theme-toggle:hover {
+    -fx-background-color: derive(-app-panel-soft, 8%);
+}
+
+.theme-toggle:pressed {
+    -fx-background-color: -app-accent;
+    -fx-text-fill: #03100b;
+}
+
+.status-pill {
+    -fx-padding: 7 12;
+}
+
+.status-online {
+    -fx-background-color: rgba(24, 195, 126, 0.16);
+    -fx-text-fill: -app-accent-strong;
+}
+
+.status-offline {
+    -fx-background-color: rgba(255, 107, 122, 0.16);
+    -fx-text-fill: -app-danger;
+}
+
+.separator .line {
+    -fx-border-color: -app-border;
+}
+
+.market-chart {
+    -fx-background-color: transparent;
+    -fx-padding: 10 0 0 0;
+}
+
+.chart-title,
+.axis-label {
+    -fx-text-fill: -app-text;
+}
+
+.axis {
+    -fx-tick-label-fill: -app-muted;
+}
+
+.chart-plot-background {
+    -fx-background-color: transparent;
+}
+
+.chart-horizontal-grid-lines,
+.chart-vertical-grid-lines {
+    -fx-stroke: -app-border;
+}
+
+.default-color0.chart-series-line {
+    -fx-stroke: -app-accent;
+    -fx-stroke-width: 3px;
+}

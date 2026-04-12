@@ -1,7 +1,12 @@
 package client.gui;
 
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.util.Locale;
+
 import javafx.application.Application;
-import javafx.geometry.Insets;
+import javafx.application.Platform;
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
 import javafx.scene.chart.LineChart;
@@ -21,7 +26,31 @@ import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
 
 public class TradeHouseApp extends Application {
+    private static final String SERVER_HOST = "127.0.0.1";
+    private static final int SERVER_PORT = 8080;
+    private static final int MAX_CHART_POINTS = 30;
+
     private final TextArea eventLog = new TextArea();
+    private final Label statusLabel = new Label("Offline");
+    private final Label cashLabel = valueLabel("Waiting");
+    private final Label holdingsLabel = valueLabel("Server-owned");
+    private final Label lastPriceLabel = valueLabel("--");
+    private final Label activeTickerLabel = valueLabel("AAPL");
+    private final Label feedStateLabel = valueLabel("Idle");
+    private final TextField usernameField = new TextField();
+    private final TextField balanceField = new TextField("10000");
+    private final ComboBox<String> sideBox = new ComboBox<>();
+    private final ComboBox<String> tickerBox = new ComboBox<>();
+    private final TextField priceField = new TextField("150.00");
+    private final TextField quantityField = new TextField("10");
+    private final Button submitButton = new Button("Submit Order");
+    private final XYChart.Series<Number, Number> priceSeries = new XYChart.Series<>();
+    private final Button themeButton = new Button();
+
+    private BorderPane root;
+    private ClientNetwork network;
+    private int chartTick = 5;
+    private boolean darkTheme;
 
     public static void main(String[] args) {
         launch(args);
@@ -29,111 +58,106 @@ public class TradeHouseApp extends Application {
 
     @Override
     public void start(Stage stage) {
-        BorderPane root = new BorderPane();
-        root.setStyle("-fx-background-color: #10110d;");
+        darkTheme = isSystemDarkTheme();
+
+        root = new BorderPane();
+        root.getStyleClass().add("app-root");
 
         root.setTop(buildHeader());
-        root.setLeft(buildLoginPanel());
-        root.setCenter(buildMarketChart());
-        root.setRight(buildOrderPanel());
-        root.setBottom(buildEventLog());
+        root.setCenter(buildWorkspace());
 
-        Scene scene = new Scene(root, 1120, 720);
+        applyTheme(darkTheme);
+
+        Scene scene = new Scene(root, 1180, 740);
+        String stylesheet = getClass().getResource("/client/gui/tradehouse.css").toExternalForm();
+        scene.getStylesheets().add(stylesheet);
+
         stage.setTitle("TradeHouse");
-        stage.setMinWidth(920);
-        stage.setMinHeight(640);
+        stage.setMinWidth(980);
+        stage.setMinHeight(660);
         stage.setScene(scene);
         stage.show();
     }
 
+    @Override
+    public void stop() {
+        if (network != null) {
+            network.close();
+        }
+    }
+
     private HBox buildHeader() {
+        Label eyebrow = new Label("MARKET SIMULATION");
+        eyebrow.getStyleClass().add("eyebrow");
+
         Label title = new Label("TradeHouse");
-        title.setStyle("-fx-text-fill: #f6f0d0; -fx-font-size: 24px; -fx-font-weight: bold;");
+        title.getStyleClass().add("app-title");
 
-        Label status = new Label("GUI scaffold ready");
-        status.setStyle("-fx-text-fill: #8fdc8f; -fx-font-size: 13px;");
+        VBox titleBlock = new VBox(4, eyebrow, title);
 
-        HBox header = new HBox(16, title, status);
+        statusLabel.getStyleClass().addAll("status-pill", "status-offline");
+
+        themeButton.getStyleClass().add("theme-toggle");
+        themeButton.setOnAction(event -> toggleTheme());
+        updateThemeButtonLabel();
+
+        HBox header = new HBox(18, titleBlock, spacer(), statusLabel, themeButton);
+        header.getStyleClass().add("top-bar");
         header.setAlignment(Pos.CENTER_LEFT);
-        header.setPadding(new Insets(18, 22, 14, 22));
-        header.setStyle("-fx-background-color: #17180f; -fx-border-color: #3d3b24; -fx-border-width: 0 0 1 0;");
-        HBox.setHgrow(status, Priority.ALWAYS);
         return header;
     }
 
-    private VBox buildLoginPanel() {
-        TextField usernameField = new TextField();
+    private HBox buildWorkspace() {
+        VBox marketPanel = buildMarketPanel();
+        HBox.setHgrow(marketPanel, Priority.ALWAYS);
+
+        HBox workspace = new HBox(18, buildAccountPanel(), marketPanel, buildOrderPanel());
+        workspace.getStyleClass().add("workspace");
+        return workspace;
+    }
+
+    private VBox buildAccountPanel() {
         usernameField.setPromptText("Username");
-        usernameField.setStyle(inputStyle());
-        TextField balanceField = new TextField("10000");
         balanceField.setPromptText("Starting balance");
-        balanceField.setStyle(inputStyle());
 
-        Button loginButton = new Button("Prepare Login");
+        Button loginButton = new Button("Connect and Login");
+        loginButton.getStyleClass().add("primary-button");
         loginButton.setMaxWidth(Double.MAX_VALUE);
-        loginButton.setStyle(buttonStyle());
-        loginButton.setOnAction(event -> eventLog.appendText("Login form ready for socket integration.\n"));
+        loginButton.setOnAction(event -> connectAndLogin());
 
-        VBox panel = new VBox(12,
+        VBox panel = new VBox(14,
                 sectionTitle("Account"),
-                fieldLabel("Username"),
+                formLabel("Username"),
                 usernameField,
-                fieldLabel("Starting Balance"),
+                formLabel("Starting Balance"),
                 balanceField,
                 loginButton,
                 new Separator(),
-                fieldLabel("Portfolio"),
-                valueLabel("Cash: waiting for login"),
-                valueLabel("Holdings: waiting for server"));
-        panel.setPadding(new Insets(18));
-        panel.setPrefWidth(260);
-        panel.setStyle(panelStyle());
+                metricLine("Cash", cashLabel),
+                metricLine("Holdings", holdingsLabel),
+                metricLine("Server", valueLabel(SERVER_HOST + ":" + SERVER_PORT)));
+        panel.getStyleClass().addAll("surface-panel", "side-panel");
+        panel.setPrefWidth(272);
         return panel;
     }
 
-    private VBox buildOrderPanel() {
-        ComboBox<String> sideBox = new ComboBox<>();
-        sideBox.getItems().addAll("BUY", "SELL");
-        sideBox.setValue("BUY");
-        sideBox.setMaxWidth(Double.MAX_VALUE);
-        sideBox.setStyle(inputStyle());
+    private VBox buildMarketPanel() {
+        VBox chartPanel = buildMarketChart();
+        VBox.setVgrow(chartPanel, Priority.ALWAYS);
 
-        ComboBox<String> tickerBox = new ComboBox<>();
-        tickerBox.getItems().addAll("AAPL", "MSFT", "TSLA", "GOOGL", "AMZN", "BTC");
-        tickerBox.setValue("AAPL");
-        tickerBox.setMaxWidth(Double.MAX_VALUE);
-        tickerBox.setStyle(inputStyle());
+        VBox marketPanel = new VBox(16, buildMetricStrip(), chartPanel, buildEventLog());
+        marketPanel.getStyleClass().add("market-panel");
+        return marketPanel;
+    }
 
-        TextField priceField = new TextField("150.00");
-        priceField.setStyle(inputStyle());
-        TextField quantityField = new TextField("10");
-        quantityField.setStyle(inputStyle());
-
-        Button submitButton = new Button("Prepare Order");
-        submitButton.setMaxWidth(Double.MAX_VALUE);
-        submitButton.setStyle(buttonStyle());
-        submitButton.setOnAction(event -> eventLog.appendText("Order form ready for socket integration.\n"));
-
-        GridPane form = new GridPane();
-        form.setHgap(10);
-        form.setVgap(10);
-        form.add(fieldLabel("Side"), 0, 0);
-        form.add(sideBox, 1, 0);
-        form.add(fieldLabel("Ticker"), 0, 1);
-        form.add(tickerBox, 1, 1);
-        form.add(fieldLabel("Price"), 0, 2);
-        form.add(priceField, 1, 2);
-        form.add(fieldLabel("Quantity"), 0, 3);
-        form.add(quantityField, 1, 3);
-
-        VBox panel = new VBox(12, sectionTitle("Order Entry"), form, submitButton, new Separator(),
-                fieldLabel("Connection"),
-                valueLabel("Socket client lands in Commit 3"),
-                valueLabel("Server: 127.0.0.1:8080"));
-        panel.setPadding(new Insets(18));
-        panel.setPrefWidth(280);
-        panel.setStyle(panelStyle());
-        return panel;
+    private HBox buildMetricStrip() {
+        HBox metrics = new HBox(12,
+                metricTile("Last Price", lastPriceLabel),
+                metricTile("Active Ticker", activeTickerLabel),
+                metricTile("Feed", feedStateLabel),
+                metricTile("Mode", valueLabel("Socket live")));
+        metrics.getStyleClass().add("metric-strip");
+        return metrics;
     }
 
     private VBox buildMarketChart() {
@@ -143,66 +167,291 @@ public class TradeHouseApp extends Application {
         yAxis.setLabel("Price");
 
         LineChart<Number, Number> chart = new LineChart<>(xAxis, yAxis);
-        chart.setTitle("Live Market Preview");
+        chart.getStyleClass().add("market-chart");
+        chart.setTitle("Live Market");
         chart.setAnimated(false);
         chart.setLegendVisible(false);
         chart.setCreateSymbols(false);
-        chart.setStyle("-fx-background-color: #10110d;");
 
-        XYChart.Series<Number, Number> series = new XYChart.Series<>();
-        series.getData().add(new XYChart.Data<>(1, 146));
-        series.getData().add(new XYChart.Data<>(2, 149));
-        series.getData().add(new XYChart.Data<>(3, 147));
-        series.getData().add(new XYChart.Data<>(4, 151));
-        series.getData().add(new XYChart.Data<>(5, 150));
-        chart.getData().add(series);
+        priceSeries.getData().add(new XYChart.Data<>(1, 146));
+        priceSeries.getData().add(new XYChart.Data<>(2, 149));
+        priceSeries.getData().add(new XYChart.Data<>(3, 147));
+        priceSeries.getData().add(new XYChart.Data<>(4, 151));
+        priceSeries.getData().add(new XYChart.Data<>(5, 150));
+        chart.getData().add(priceSeries);
 
-        VBox wrapper = new VBox(12, chart);
-        wrapper.setPadding(new Insets(18));
-        wrapper.setStyle("-fx-background-color: #10110d;");
+        VBox chartPanel = new VBox(10, sectionTitle("Market Pulse"), chart);
+        chartPanel.getStyleClass().add("surface-panel");
         VBox.setVgrow(chart, Priority.ALWAYS);
-        return wrapper;
+        return chartPanel;
+    }
+
+    private VBox buildOrderPanel() {
+        sideBox.getItems().addAll("BUY", "SELL");
+        sideBox.setValue("BUY");
+        sideBox.setMaxWidth(Double.MAX_VALUE);
+
+        tickerBox.getItems().addAll("AAPL", "MSFT", "TSLA", "GOOGL", "AMZN", "BTC");
+        tickerBox.setValue("AAPL");
+        tickerBox.setMaxWidth(Double.MAX_VALUE);
+        tickerBox.setOnAction(event -> activeTickerLabel.setText(tickerBox.getValue()));
+
+        submitButton.getStyleClass().add("primary-button");
+        submitButton.setMaxWidth(Double.MAX_VALUE);
+        submitButton.setDisable(true);
+        submitButton.setOnAction(event -> submitOrder());
+
+        GridPane form = new GridPane();
+        form.getStyleClass().add("order-form");
+        form.setHgap(10);
+        form.setVgap(10);
+        form.add(formLabel("Side"), 0, 0);
+        form.add(sideBox, 1, 0);
+        form.add(formLabel("Ticker"), 0, 1);
+        form.add(tickerBox, 1, 1);
+        form.add(formLabel("Price"), 0, 2);
+        form.add(priceField, 1, 2);
+        form.add(formLabel("Quantity"), 0, 3);
+        form.add(quantityField, 1, 3);
+
+        VBox panel = new VBox(14,
+                sectionTitle("Order Ticket"),
+                form,
+                submitButton,
+                new Separator(),
+                formLabel("What happens next"),
+                bodyText("Orders go to the server. Matching, balances, and persistence stay server-side."));
+        panel.getStyleClass().addAll("surface-panel", "side-panel", "order-ticket");
+        panel.setPrefWidth(300);
+        return panel;
     }
 
     private VBox buildEventLog() {
-        eventLog.setText("TradeHouse GUI scaffold loaded.\nBackend socket integration comes next.\n");
+        eventLog.setText("TradeHouse GUI loaded.\nUse Connect and Login to reach the server.\n");
         eventLog.setEditable(false);
-        eventLog.setPrefRowCount(5);
-        eventLog.setStyle("-fx-control-inner-background: #0c0d09; -fx-text-fill: #f6f0d0; -fx-font-family: Menlo;");
+        eventLog.setPrefRowCount(7);
+        eventLog.getStyleClass().add("event-log");
 
-        VBox wrapper = new VBox(8, sectionTitle("Event Log"), eventLog);
-        wrapper.setPadding(new Insets(0, 18, 18, 18));
-        wrapper.setStyle("-fx-background-color: #10110d;");
+        VBox wrapper = new VBox(10, sectionTitle("Event Feed"), eventLog);
+        wrapper.getStyleClass().add("surface-panel");
         return wrapper;
+    }
+
+    private void connectAndLogin() {
+        String username = usernameField.getText();
+        String startingBalance = balanceField.getText();
+
+        if (username == null || username.isBlank()) {
+            appendEvent("Username is required before login.");
+            return;
+        }
+
+        if (startingBalance == null || startingBalance.isBlank()) {
+            appendEvent("Starting balance is required before login.");
+            return;
+        }
+
+        try {
+            ensureConnected();
+            network.login(username, startingBalance);
+            appendEvent("Sent login for " + username.trim().toUpperCase() + ".");
+        } catch (RuntimeException | java.io.IOException e) {
+            setOffline();
+            appendEvent("Login failed: " + e.getMessage());
+        }
+    }
+
+    private void submitOrder() {
+        try {
+            ensureConnected();
+            network.submitOrder(sideBox.getValue(), tickerBox.getValue(), priceField.getText(),
+                    quantityField.getText());
+            appendEvent("Sent " + sideBox.getValue() + " order for " + tickerBox.getValue() + ".");
+        } catch (RuntimeException | java.io.IOException e) {
+            setOffline();
+            appendEvent("Order failed: " + e.getMessage());
+        }
+    }
+
+    private void ensureConnected() throws java.io.IOException {
+        if (network != null && network.isConnected()) {
+            return;
+        }
+
+        network = new ClientNetwork(SERVER_HOST, SERVER_PORT, this::handleServerMessage, this::handleNetworkError);
+        network.connect();
+        setStatus("Connected", true);
+        appendEvent("Connected to TradeHouse server.");
+    }
+
+    private void handleServerMessage(String message) {
+        Platform.runLater(() -> {
+            if (message.startsWith("LOGIN_SUCCESS:")) {
+                String[] parts = message.split(":");
+                if (parts.length >= 3) {
+                    cashLabel.setText("$" + parts[2]);
+                    holdingsLabel.setText("Waiting for trades");
+                    setStatus("Logged in as " + parts[1], true);
+                    submitButton.setDisable(false);
+                }
+            } else if (message.startsWith("SERVER_ERROR:")) {
+                setStatus("Server error", false);
+            } else if (message.startsWith("MARKET_UPDATE:")) {
+                handleMarketUpdate(message);
+            } else if ("PING".equalsIgnoreCase(message)) {
+                feedStateLabel.setText("Heartbeat OK");
+            }
+            appendEvent("SERVER " + message);
+        });
+    }
+
+    private void handleMarketUpdate(String message) {
+        String[] parts = message.split(":");
+        if (parts.length < 3) {
+            return;
+        }
+
+        try {
+            String ticker = parts[1];
+            double price = Double.parseDouble(parts[2]);
+            activeTickerLabel.setText(ticker);
+            lastPriceLabel.setText(String.format("$%.2f", price));
+            feedStateLabel.setText("Live");
+            priceSeries.getData().add(new XYChart.Data<>(++chartTick, price));
+            if (priceSeries.getData().size() > MAX_CHART_POINTS) {
+                priceSeries.getData().remove(0);
+            }
+        } catch (NumberFormatException e) {
+            appendEvent("Ignored malformed market update: " + message);
+        }
+    }
+
+    private void handleNetworkError(String message) {
+        Platform.runLater(() -> {
+            setOffline();
+            appendEvent(message);
+        });
+    }
+
+    private void toggleTheme() {
+        darkTheme = !darkTheme;
+        applyTheme(darkTheme);
+    }
+
+    private void applyTheme(boolean dark) {
+        root.getStyleClass().removeAll("theme-dark", "theme-light");
+        root.getStyleClass().add(dark ? "theme-dark" : "theme-light");
+        updateThemeButtonLabel();
+    }
+
+    private void updateThemeButtonLabel() {
+        themeButton.setText(darkTheme ? "Light" : "Dark");
+    }
+
+    private boolean isSystemDarkTheme() {
+        String osName = System.getProperty("os.name", "").toLowerCase(Locale.ROOT);
+
+        try {
+            if (osName.contains("mac")) {
+                return commandOutput("defaults", "read", "-g", "AppleInterfaceStyle").contains("Dark");
+            }
+
+            if (osName.contains("win")) {
+                String output = commandOutput("reg", "query",
+                        "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Themes\\Personalize",
+                        "/v", "AppsUseLightTheme");
+                return !output.contains("0x1") && !output.contains("1");
+            }
+
+            String colorScheme = commandOutput("gsettings", "get", "org.gnome.desktop.interface", "color-scheme");
+            if (colorScheme.toLowerCase(Locale.ROOT).contains("dark")) {
+                return true;
+            }
+
+            String gtkTheme = commandOutput("gsettings", "get", "org.gnome.desktop.interface", "gtk-theme");
+            return gtkTheme.toLowerCase(Locale.ROOT).contains("dark");
+        } catch (IOException | InterruptedException e) {
+            Thread.currentThread().interrupt();
+            return false;
+        }
+    }
+
+    private String commandOutput(String... command) throws IOException, InterruptedException {
+        Process process = new ProcessBuilder(command).redirectErrorStream(true).start();
+        StringBuilder output = new StringBuilder();
+
+        try (BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()))) {
+            String line;
+            while ((line = reader.readLine()) != null) {
+                if (!output.isEmpty()) {
+                    output.append('\n');
+                }
+                output.append(line);
+            }
+        }
+
+        process.waitFor();
+        return output.toString().trim();
+    }
+
+    private void setOffline() {
+        setStatus("Offline", false);
+        submitButton.setDisable(true);
+    }
+
+    private void setStatus(String text, boolean online) {
+        statusLabel.setText(text);
+        statusLabel.getStyleClass().removeAll("status-online", "status-offline");
+        statusLabel.getStyleClass().add(online ? "status-online" : "status-offline");
+    }
+
+    private void appendEvent(String message) {
+        eventLog.appendText(message + "\n");
+    }
+
+    private HBox metricLine(String labelText, Label value) {
+        Label label = formLabel(labelText);
+        HBox row = new HBox(8, label, spacer(), value);
+        row.getStyleClass().add("metric-line");
+        row.setAlignment(Pos.CENTER_LEFT);
+        return row;
+    }
+
+    private VBox metricTile(String labelText, Label value) {
+        VBox tile = new VBox(6, formLabel(labelText), value);
+        tile.getStyleClass().add("metric-tile");
+        HBox.setHgrow(tile, Priority.ALWAYS);
+        return tile;
     }
 
     private Label sectionTitle(String text) {
         Label label = new Label(text);
-        label.setStyle("-fx-text-fill: #f6f0d0; -fx-font-size: 16px; -fx-font-weight: bold;");
+        label.getStyleClass().add("section-title");
         return label;
     }
 
-    private Label fieldLabel(String text) {
+    private Label formLabel(String text) {
         Label label = new Label(text);
-        label.setStyle("-fx-text-fill: #c7b85a; -fx-font-size: 12px;");
+        label.getStyleClass().add("form-label");
         return label;
     }
 
     private Label valueLabel(String text) {
         Label label = new Label(text);
-        label.setStyle("-fx-text-fill: #efe7b4; -fx-font-size: 13px;");
+        label.getStyleClass().add("value-label");
         return label;
     }
 
-    private String panelStyle() {
-        return "-fx-background-color: #17180f; -fx-border-color: #3d3b24; -fx-border-width: 0 1 0 0;";
+    private Label bodyText(String text) {
+        Label label = new Label(text);
+        label.getStyleClass().add("body-text");
+        label.setWrapText(true);
+        return label;
     }
 
-    private String inputStyle() {
-        return "-fx-background-color: #262616; -fx-text-fill: #f6f0d0; -fx-prompt-text-fill: #8d8556;";
-    }
-
-    private String buttonStyle() {
-        return "-fx-background-color: #27b868; -fx-text-fill: #07100a; -fx-font-weight: bold;";
+    private HBox spacer() {
+        HBox spacer = new HBox();
+        HBox.setHgrow(spacer, Priority.ALWAYS);
+        return spacer;
     }
 }
