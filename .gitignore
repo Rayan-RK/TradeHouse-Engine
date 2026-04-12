@@ -1,6 +1,9 @@
 target/
+bin/
 *.class
 .idea/
 *.iml
 .vscode/
 .DS_Store
+plan.md
+data/*.csv

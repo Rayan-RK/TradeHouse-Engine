@@ -18,7 +18,8 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
 public class Server {
-    private static final int PORT = 8080; 
+    private static final int PORT = 8080;
+    private static final String NO_BOTS_FLAG = "--no-bots";
     private static final long HEARTBEAT_INTERVAL_SECONDS = 5;
     private static final long HEARTBEAT_TIMEOUT_MILLIS = 15000;
     private static final ExecutorService pool = Executors.newFixedThreadPool(100);
@@ -38,6 +39,35 @@ public class Server {
 
     public static void main(String[] args) {
         System.out.println("[SERVER] TradeHouse Server is booting up...");
+        boolean startBots = shouldStartBots(args);
+
+        try (ServerSocket serverSocket = new ServerSocket(PORT)) {
+            restoreMarketState();
+            startHeartbeatMonitor();
+
+            if (startBots) {
+                startMarketMakerBots();
+            } else {
+                System.out.println("[SERVER] Market Maker Bots disabled for deterministic testing.");
+            }
+
+            System.out.println("[SERVER] Listening for connections on port " + PORT + "...");
+
+            while (true) {
+                Socket clientSocket = serverSocket.accept();
+                System.out.println("[SERVER] New Agent Connected: " + clientSocket.getInetAddress().getHostAddress());
+
+                ClientHandler clientThread = new ClientHandler(clientSocket);
+                pool.execute(clientThread);
+            }
+        } catch (IOException e) {
+            System.err.println("[SERVER FATAL ERROR] " + e.getMessage());
+        } finally {
+            shutdownServices();
+        }
+    }
+
+    private static void restoreMarketState() {
         fileManager.initializeStorage();
         List<TradeRecord> previousTrades = fileManager.loadTradeHistory();
         List<UserAccount> restoredAccounts = fileManager.loadAccountState();
@@ -51,28 +81,26 @@ public class Server {
         System.out.println("[SERVER] Restored " + restoredAccounts.size() + " account snapshot(s).");
         System.out.println("[SERVER] Restored " + restoredOpenOrders.size() + " open order(s).");
         System.out.println("[SERVER] Restored last known prices for " + market.getCurrentPricesSnapshot().size() + " ticker(s).");
-        startHeartbeatMonitor();
+    }
 
-        // --- NEW: Start the Market Maker Bots ---
-        // We run this in a separate thread so it doesn't block the Socket listener
-        Thread botThread = new Thread(new BotEngine());
-        botThread.setDaemon(true); 
+    private static void startMarketMakerBots() {
+        Thread botThread = new Thread(new BotEngine(), "market-maker-bots");
+        botThread.setDaemon(true);
         botThread.start();
-        // -----------------------------------------
+    }
 
-        try (ServerSocket serverSocket = new ServerSocket(PORT)) {
-            System.out.println("[SERVER] Listening for connections on port " + PORT + "...");
-
-            while (true) {
-                Socket clientSocket = serverSocket.accept();
-                System.out.println("[SERVER] New Agent Connected: " + clientSocket.getInetAddress().getHostAddress());
-
-                ClientHandler clientThread = new ClientHandler(clientSocket);
-                pool.execute(clientThread); 
+    private static boolean shouldStartBots(String[] args) {
+        for (String arg : args) {
+            if (NO_BOTS_FLAG.equalsIgnoreCase(arg)) {
+                return false;
             }
-        } catch (IOException e) {
-            System.err.println("[SERVER FATAL ERROR] " + e.getMessage());
         }
+        return true;
+    }
+
+    private static void shutdownServices() {
+        scheduler.shutdownNow();
+        pool.shutdownNow();
     }
 
     /**

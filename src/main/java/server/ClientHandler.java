@@ -83,15 +83,25 @@ public class ClientHandler implements Runnable {
     }
 
     private void handleLogin(String clientMessage, ClientSession session) {
-        String[] parts = clientMessage.split(":");
+        String[] parts = clientMessage.split(":", -1);
         if (parts.length != 3) {
             session.sendMessage("SERVER_ERROR: LOGIN format must be LOGIN:USERNAME:STARTING_BALANCE");
             return;
         }
 
         try {
-            String username = parts[1].toUpperCase();
-            double startingBalance = Double.parseDouble(parts[2]);
+            String username = parts[1].trim().toUpperCase();
+            double startingBalance = Double.parseDouble(parts[2].trim());
+
+            if (username.isBlank()) {
+                session.sendMessage("SERVER_ERROR: Username cannot be blank.");
+                return;
+            }
+
+            if (Double.isNaN(startingBalance) || Double.isInfinite(startingBalance) || startingBalance < 0) {
+                session.sendMessage("SERVER_ERROR: Starting balance cannot be negative.");
+                return;
+            }
 
             UserAccount account = Server.accountManager.login(username, startingBalance);
             session.setUsername(account.getUsername());
