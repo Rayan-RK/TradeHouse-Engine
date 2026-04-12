@@ -7,23 +7,21 @@
     -app-muted: #9ca8a4;
     -app-accent: #18c37e;
     -app-accent-strong: #5ee4ad;
-    -app-warning: #f3c65c;
     -app-danger: #ff6b7a;
     -app-input: #1b2024;
 }
 
 .theme-light {
-    -app-bg: #f4f1eb;
-    -app-panel: #fffdf8;
-    -app-panel-soft: #ece7df;
-    -app-border: #d6d0c4;
+    -app-bg: #f6f8f7;
+    -app-panel: #ffffff;
+    -app-panel-soft: #eef2f1;
+    -app-border: #d8dfdd;
     -app-text: #1f2523;
     -app-muted: #6e7772;
     -app-accent: #087e55;
     -app-accent-strong: #0e9f6e;
-    -app-warning: #a66f00;
     -app-danger: #ba2f45;
-    -app-input: #f7f3ec;
+    -app-input: #f3f6f5;
 }
 
 .app-root {
@@ -117,18 +115,13 @@
 }
 
 .text-field,
-.combo-box-base,
-.text-area {
+.combo-box-base {
     -fx-background-color: -app-input;
     -fx-border-color: -app-border;
     -fx-border-radius: 8;
     -fx-background-radius: 8;
     -fx-text-fill: -app-text;
     -fx-prompt-text-fill: -app-muted;
-}
-
-.text-field,
-.combo-box-base {
     -fx-padding: 8 10;
 }
 
@@ -151,12 +144,62 @@
     -fx-background-color: -app-panel-soft;
 }
 
-.event-log {
-    -fx-control-inner-background: -app-input;
-    -fx-highlight-fill: -app-accent;
-    -fx-highlight-text-fill: -app-bg;
-    -fx-font-family: "SF Mono", Menlo, Consolas, monospace;
-    -fx-font-size: 12px;
+.activity-table {
+    -fx-background-color: -app-input;
+    -fx-border-color: -app-border;
+    -fx-border-radius: 8;
+    -fx-background-radius: 8;
+}
+
+.activity-table .column-header-background,
+.activity-table .filler {
+    -fx-background-color: -app-panel-soft;
+}
+
+.activity-table .column-header {
+    -fx-background-color: transparent;
+    -fx-border-color: transparent -app-border -app-border transparent;
+}
+
+.activity-table .column-header .label {
+    -fx-text-fill: -app-muted;
+    -fx-font-size: 11px;
+    -fx-font-weight: 800;
+}
+
+.activity-table .table-row-cell,
+.activity-table .table-cell {
+    -fx-background-color: -app-input;
+    -fx-border-color: transparent;
+    -fx-text-fill: -app-text;
+}
+
+.activity-table .table-row-cell:selected,
+.activity-table .table-row-cell:selected .table-cell {
+    -fx-background-color: rgba(24, 195, 126, 0.18);
+    -fx-text-fill: -app-text;
+}
+
+.feedback-label {
+    -fx-background-radius: 8;
+    -fx-border-radius: 8;
+    -fx-padding: 10 12;
+    -fx-font-weight: 700;
+}
+
+.feedback-info {
+    -fx-background-color: rgba(156, 168, 164, 0.14);
+    -fx-text-fill: -app-muted;
+}
+
+.feedback-success {
+    -fx-background-color: rgba(24, 195, 126, 0.16);
+    -fx-text-fill: -app-accent-strong;
+}
+
+.feedback-error {
+    -fx-background-color: rgba(255, 107, 122, 0.16);
+    -fx-text-fill: -app-danger;
 }
 
 .primary-button,
@@ -167,8 +210,7 @@
     -fx-font-weight: 800;
 }
 
-.button,
-.toggle-button {
+.button {
     -fx-cursor: hand;
 }
 
