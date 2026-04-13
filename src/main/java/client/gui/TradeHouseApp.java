@@ -32,6 +32,9 @@ import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
 
+/**
+ * JavaFX trading dashboard that connects to the socket server and renders live market state.
+ */
 public class TradeHouseApp extends Application {
     private static final String SERVER_HOST = "127.0.0.1";
     private static final int SERVER_PORT = 8080;
@@ -39,6 +42,7 @@ public class TradeHouseApp extends Application {
     private static final int MAX_ACTIVITY_ROWS = 12;
     private static final DateTimeFormatter TIME_FORMAT = DateTimeFormatter.ofPattern("HH:mm:ss");
 
+    // Shared dashboard controls are fields so socket callbacks can update live UI state.
     private final Label statusLabel = new Label("Offline");
     private final Label cashLabel = valueLabel("Waiting");
     private final Label availableCashLabel = valueLabel("--");
@@ -101,6 +105,7 @@ public class TradeHouseApp extends Application {
         }
     }
 
+    // Header keeps the live status plus sound and theme controls in one place.
     private HBox buildHeader() {
         Label eyebrow = new Label("MARKET SIMULATION");
         eyebrow.getStyleClass().add("eyebrow");
@@ -135,6 +140,7 @@ public class TradeHouseApp extends Application {
         return workspace;
     }
 
+    // Left panel handles login and shows the server-owned portfolio snapshot.
     private VBox buildAccountPanel() {
         usernameField.setPromptText("Username");
         balanceField.setPromptText("Starting balance");
@@ -180,6 +186,7 @@ public class TradeHouseApp extends Application {
         return metrics;
     }
 
+    // Center panel shows the live market chart and starts with demo-friendly seed points.
     private VBox buildMarketChart() {
         NumberAxis xAxis = new NumberAxis();
         NumberAxis yAxis = new NumberAxis();
@@ -206,6 +213,7 @@ public class TradeHouseApp extends Application {
         return chartPanel;
     }
 
+    // Right panel builds the order ticket and inline validation feedback.
     private VBox buildOrderPanel() {
         sideBox.getItems().addAll("BUY", "SELL");
         sideBox.setValue("BUY");
@@ -329,6 +337,7 @@ public class TradeHouseApp extends Application {
         addActivity("Connected", "Server", SERVER_HOST + ":" + SERVER_PORT);
     }
 
+    // Server messages are routed onto the JavaFX thread before touching controls.
     private void handleServerMessage(String message) {
         Platform.runLater(() -> {
             if (message.startsWith("LOGIN_SUCCESS:")) {
@@ -487,6 +496,7 @@ public class TradeHouseApp extends Application {
         statusLabel.getStyleClass().add(online ? "status-online" : "status-offline");
     }
 
+    // Local validation keeps obvious bad orders out of the socket protocol.
     private PendingOrder readPendingOrder() {
         String side = sideBox.getValue();
         String ticker = tickerBox.getValue();
@@ -635,6 +645,7 @@ public class TradeHouseApp extends Application {
         return "NONE".equals(rawHoldings) ? "None" : rawHoldings.replace("|", ", ").replace("=", " ");
     }
 
+    // Small UI factory helpers keep the layout readable without separate component classes.
     private HBox metricLine(String labelText, Label value) {
         Label label = formLabel(labelText);
         HBox row = new HBox(8, label, spacer(), value);

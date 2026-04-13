@@ -1,3 +1,5 @@
+/* Theme palettes used by the JavaFX dashboard. Each theme exposes the same
+   semantic color names so the component styles below do not duplicate colors. */
 .theme-dark {
     -app-bg: #050607;
     -app-panel: #101214;
@@ -30,6 +32,7 @@
     -fx-font-size: 13px;
 }
 
+/* Dashboard layout surfaces. */
 .top-bar {
     -fx-padding: 18 22;
     -fx-background-color: -app-panel;
@@ -114,6 +117,7 @@
     -fx-hgap: 10;
 }
 
+/* Form inputs and activity table. */
 .text-field,
 .combo-box-base {
     -fx-background-color: -app-input;
@@ -202,6 +206,7 @@
     -fx-text-fill: -app-danger;
 }
 
+/* Buttons and status pills. */
 .primary-button,
 .utility-button,
 .status-pill {
@@ -271,6 +276,7 @@
     -fx-border-color: -app-border;
 }
 
+/* Live market chart. */
 .market-chart {
     -fx-background-color: transparent;
     -fx-padding: 10 0 0 0;

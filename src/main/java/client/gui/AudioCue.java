@@ -5,6 +5,9 @@ import javax.sound.sampled.AudioSystem;
 import javax.sound.sampled.LineUnavailableException;
 import javax.sound.sampled.SourceDataLine;
 
+/**
+ * Generates short in-memory tones for GUI feedback without shipping audio files.
+ */
 public final class AudioCue {
     private static final float SAMPLE_RATE = 44100f;
 

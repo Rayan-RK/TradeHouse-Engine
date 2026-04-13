@@ -10,6 +10,9 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 
+/**
+ * Deterministic socket smoke test for the final demo path.
+ */
 public class IntegrationProbe {
     private static final String HOST = "127.0.0.1";
     private static final int PORT = 8080;

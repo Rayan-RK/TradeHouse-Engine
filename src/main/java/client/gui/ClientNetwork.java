@@ -7,6 +7,9 @@ import java.io.PrintWriter;
 import java.net.Socket;
 import java.util.function.Consumer;
 
+/**
+ * Owns the JavaFX client's socket connection and forwards server messages to the UI.
+ */
 public class ClientNetwork implements AutoCloseable {
     private final String host;
     private final int port;

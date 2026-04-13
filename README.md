@@ -1,50 +1,76 @@
 # TradeHouse
 
-TradeHouse is a multi-threaded Java client/server market simulation. The server accepts multiple socket clients, matches buy and sell orders, persists completed trades to a CSV ledger, restores market prices, account balances, and open orders on startup, and uses heartbeat checks to remove unresponsive clients.
+TradeHouse is a multi-threaded Java market simulation where multiple socket clients log in, place buy/sell orders, watch live market updates, and keep server-owned account state through CSV persistence. The project is built around the course requirements: JavaFX GUI, socket networking, server-side threading, and File I/O instead of a database.
 
-## Project Structure
+## Collaborators
 
-- `src/main/java/server/`: Server, client handlers, order book, bots, persistence, and heartbeat logic
-- `src/main/java/shared/`: Shared `Order` model
-- `src/main/java/client/`: Console validation clients, including `TestClient` and `IntegrationProbe`
-- `src/main/java/client/gui/`: JavaFX GUI and socket client
-- `src/main/resources/client/gui/`: JavaFX CSS theme resources
-- `data/`: Server-side ledger storage
+- Rayan Khan
+- Karan Bhaskar
+- Mohammad Ali Jafari
 
-## Compile
+## Screenshot
 
-Requirements:
+TODO: Add a screenshot of the JavaFX dashboard running before final submission.
+
+## Demo
+
+TODO: Add the 2-5 minute demo video URL before final submission.
+
+The recording should show server startup, at least two clients, login, order submission, live market updates, account/portfolio feedback, CSV persistence, and heartbeat behavior.
+
+## Features
+
+- Multi-client socket server on port `8080`
+- Threaded client handlers and server-side market-maker bots
+- Synchronized order book with partial fills and price-priority matching
+- JavaFX trading dashboard with live charting, order ticket, account panel, activity table, dark/light theme toggle, and sound toggle
+- Client socket reader thread that responds to heartbeat `PING` with `PONG`
+- Server-driven account updates for cash, available cash, and holdings
+- CSV persistence for completed trades, account snapshots, and open orders
+- Deterministic integration probe for multi-client broadcast, heartbeat, and persistence checks
+
+## Requirements
 
 - JDK 25
 - Maven 3.9+
 
-Maven downloads JavaFX and compiles the server, shared models, test client, and GUI:
+Maven downloads JavaFX through the OpenJFX dependency, so no manual JavaFX installation is required.
+
+## Clone And Build
 
 ```bash
+git clone git@github.com:OntarioTech-CS-program/w26-csci2020u-finalproject-w26-team55.git
+cd w26-csci2020u-finalproject-w26-team55
 mvn clean compile
 ```
 
 ## Run
 
-Start the server in one terminal:
+Start the server:
 
 ```bash
 mvn exec:java -Dexec.mainClass=server.Server
 ```
 
-For deterministic GUI/network testing without automated market-maker orders:
+Start the server without market-maker bots for deterministic testing:
 
 ```bash
 mvn exec:java -Dexec.mainClass=server.Server -Dexec.args=--no-bots
 ```
 
-Start the backend test client in another terminal:
+Run the JavaFX GUI in another terminal:
+
+```bash
+mvn javafx:run
+```
+
+Run the console backend test client:
 
 ```bash
 mvn exec:java -Dexec.mainClass=client.TestClient
 ```
 
-Run the integration probe against a server started with `--no-bots`:
+Run the deterministic integration probe against a server started with `--no-bots`:
 
 ```bash
 mvn exec:java -Dexec.mainClass=client.IntegrationProbe
@@ -52,55 +78,64 @@ mvn exec:java -Dexec.mainClass=client.IntegrationProbe
 
 The probe checks two-client market broadcasts, heartbeat `PING`/`PONG`, and CSV persistence evidence for the ledger, accounts, and open orders.
 
-## JavaFX GUI
+## Protocol
 
-The JavaFX client lives in `src/main/java/client/gui/TradeHouseApp.java`. It can connect to the local server, send `LOGIN` requests, validate and submit basic `BUY`/`SELL` orders, listen for server responses and account snapshots on a background thread, and reply to heartbeat `PING` messages with `PONG`.
+Client to server:
 
-The dashboard uses a modern JavaFX theme with dark/light mode toggle, live market status cards, an order ticket, a market chart, server-driven cash/available-cash/holdings feedback, inline order feedback, and one activity table for market/order updates. Final UX polish and demo documentation are planned for the next frontend steps.
+- `LOGIN:USERNAME:STARTING_BALANCE`
+- `BUY:TICKER:PRICE:QUANTITY`
+- `SELL:TICKER:PRICE:QUANTITY`
+- `USERNAME:BUY:TICKER:PRICE:QUANTITY`
+- `USERNAME:SELL:TICKER:PRICE:QUANTITY`
+- `PONG`
 
-Run the GUI:
+Server to client:
 
-```bash
-mvn javafx:run
-```
-
-## Supported Order Formats
-
-The server currently accepts both formats below:
-
-- `LOGIN:MOHAMMAD:10000`
-- `BUY:AAPL:150.00:10`
-- `MOHAMMAD:BUY:AAPL:150.00:10`
-
-`LOGIN` creates or restores a server-side account. The username-prefixed order format is used by the persistence and heartbeat cleanup logic to associate orders with a client identity.
+- `CONNECTION_SUCCESS:...`
+- `LOGIN_SUCCESS:USERNAME:CASH`
+- `ACCOUNT_UPDATE:USERNAME:CASH:AVAILABLE_CASH:HOLDINGS`
+- `SERVER_ACK:...`
+- `SERVER_ERROR:...`
+- `MARKET_UPDATE:TICKER:PRICE`
+- `PING`
 
 ## Persistence
 
-- Completed trades are appended to `data/ledger.csv`
-- If the ledger does not exist, the server creates it on startup
-- If an older ledger format is found, the server migrates it to the current CSV schema
-- Server-side balances and holdings are stored in `data/accounts.csv`
-- Open orders are stored in `data/open_orders.csv`
-- On startup, the server restores account snapshots, open orders, and the last known traded price for each ticker
+Runtime CSV files are created under `data/`:
 
-## Heartbeats
+- `data/ledger.csv`: completed trades
+- `data/accounts.csv`: account balances and holdings
+- `data/open_orders.csv`: open buy/sell orders
 
-- The server sends `PING` to active clients every 5 seconds
-- Clients should reply with `PONG`
-- If a client does not respond within 15 seconds, the server disconnects it
-- If that client submitted user-tagged orders, the server cancels that user's open orders
+On startup, the server restores accounts, open orders, and last known market prices from those files. Runtime CSV files are ignored by Git so local demo/test data does not pollute commits.
 
-## Demo Checklist
+## Project Structure
 
-For a milestone demo or recording, show:
+- `src/main/java/server/`: server, client handlers, order book, bots, persistence, heartbeat logic
+- `src/main/java/shared/`: shared `Order` model
+- `src/main/java/client/`: console validation clients and `IntegrationProbe`
+- `src/main/java/client/gui/`: JavaFX GUI, socket client, and audio cues
+- `src/main/resources/client/gui/`: JavaFX CSS theme
+- `data/`: runtime CSV persistence directory
 
-1. Server booting and restoring the ledger, accounts, and open orders
-2. A client logging in with `LOGIN:USERNAME:STARTING_BALANCE`
-3. A successful trade that produces a `MARKET_UPDATE`
-4. `data/ledger.csv`, `data/accounts.csv`, and `data/open_orders.csv` updating
-5. A server restart restoring account state and open orders
-6. A client stopping heartbeat responses and being removed by the server
+## Rubric Coverage
 
-## Current Scope
+- Scope: multi-client trading simulation with GUI, live updates, persistence, and reliability behavior
+- Technology Requirements: sockets, multi-threading, JavaFX GUI, and server-side File I/O are all used meaningfully
+- README: project description, collaborators, run instructions, dependencies, references, AI disclosure, and media placeholders are included
+- Video Demo: TODO placeholder is present; final link must be added after recording
+- Overall Best Practices: Maven build, package organization, validation, error feedback, integration probe, and AI disclosure are included
+- Project Functionality: login, order submission, matching, market broadcasts, account updates, persistence restore, and heartbeat behavior are implemented
+- UI/UX: modern dashboard, live chart, theme toggle, sound toggle, inline feedback, portfolio panel, and activity history are implemented
+- Solution Quality: the remaining presentation risk is adding the final screenshot and demo URL
 
-This repository currently contains the backend server, a socket test client, persistence logic, account restore logic, open-order restore logic, heartbeat fault-tolerance work, and a Maven-based JavaFX GUI with socket login/order submission, local order validation, server-driven portfolio feedback, recent market activity, live market updates, and dark/light mode. Final UX polish and demo documentation are the next frontend steps.
+## References And Resources
+
+- Java Standard Library: `java.net.Socket`, `java.util.concurrent`, `java.nio.file`, and `javax.sound.sampled`
+- JavaFX Controls and `LineChart` via OpenJFX
+- OpenJFX Maven plugin for `mvn javafx:run`
+- Maven compiler and exec plugins
+
+## AI Usage Disclosure
+
+AI assistance was used for UI color/theme ideas, CSS layout suggestions, socket integration troubleshooting, and project checklist planning. The team reviewed and tested the final work.

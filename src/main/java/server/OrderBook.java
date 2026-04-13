@@ -13,6 +13,7 @@ public class OrderBook {
     private final List<Order> sellOrders = Collections.synchronizedList(new ArrayList<>());
     private final Map<String, Double> currentPrices = Collections.synchronizedMap(new HashMap<>());
 
+    // Every new order is matched first, then the remaining open book is saved.
     public synchronized void processOrder(Order newOrder) {
         if (newOrder.getType().equals("BUY")) {
             buyOrders.add(newOrder);
@@ -23,6 +24,7 @@ public class OrderBook {
         persistOpenOrders();
     }
 
+    // Price-priority matching supports partial fills and notifies both clients after a trade.
     private void attemptMatch() {
         if (buyOrders.isEmpty() || sellOrders.isEmpty()) return;
 
@@ -40,12 +42,10 @@ public class OrderBook {
                     Server.fileManager.appendTrade(bid, ask, ask.getPrice(), tradedShares);
                     currentPrices.put(bid.getTicker(), ask.getPrice());
 
-                    // --- BROADCAST THE TRADE ---
                     String broadcastMsg = String.format("MARKET_UPDATE:%s:%.2f", bid.getTicker(), ask.getPrice());
                     Server.broadcast(broadcastMsg);
                     Server.sendAccountUpdate(bid.getUsername());
                     Server.sendAccountUpdate(ask.getUsername());
-                    // ----------------------------
 
                     System.out.println("\n=========================================");
                     System.out.printf("[TRADE EXECUTED] %s: %d shares @ $%.2f%n", bid.getTicker(), tradedShares, ask.getPrice());
@@ -74,6 +74,7 @@ public class OrderBook {
         return new HashMap<>(currentPrices);
     }
 
+    // Heartbeat cleanup uses this to release reservations for users who disconnect.
     public synchronized void cancelOrdersForUser(String username) {
         if (username == null || username.isBlank()) {
             return;
