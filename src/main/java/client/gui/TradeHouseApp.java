@@ -57,6 +57,7 @@ public class TradeHouseApp extends Application {
     private final XYChart.Series<Number, Number> priceSeries = new XYChart.Series<>();
     private final ObservableList<ActivityRow> activityRows = FXCollections.observableArrayList();
     private final TableView<ActivityRow> activityTable = new TableView<>(activityRows);
+    private final Button soundButton = new Button();
     private final Button themeButton = new Button();
 
     private BorderPane root;
@@ -64,6 +65,7 @@ public class TradeHouseApp extends Application {
     private PendingOrder pendingOrder;
     private int chartTick = 5;
     private boolean darkTheme;
+    private boolean soundEnabled = true;
 
     public static void main(String[] args) {
         launch(args);
@@ -110,11 +112,15 @@ public class TradeHouseApp extends Application {
 
         statusLabel.getStyleClass().addAll("status-pill", "status-offline");
 
-        themeButton.getStyleClass().add("theme-toggle");
+        soundButton.getStyleClass().add("utility-button");
+        soundButton.setOnAction(event -> toggleSound());
+        updateSoundButtonLabel();
+
+        themeButton.getStyleClass().add("utility-button");
         themeButton.setOnAction(event -> toggleTheme());
         updateThemeButtonLabel();
 
-        HBox header = new HBox(18, titleBlock, spacer(), statusLabel, themeButton);
+        HBox header = new HBox(18, titleBlock, spacer(), statusLabel, soundButton, themeButton);
         header.getStyleClass().add("top-bar");
         header.setAlignment(Pos.CENTER_LEFT);
         return header;
@@ -334,6 +340,7 @@ public class TradeHouseApp extends Application {
                     submitButton.setDisable(false);
                     updateOrderFeedback("Logged in. Order ticket is ready.", "feedback-success");
                     addActivity("Accepted", parts[1], "Login confirmed with cash $" + parts[2]);
+                    playSuccessCue();
                 }
             } else if (message.startsWith("SERVER_ACK:")) {
                 acknowledgePendingOrder();
@@ -379,6 +386,7 @@ public class TradeHouseApp extends Application {
             lastPriceLabel.setText(String.format("$%.2f", price));
             feedStateLabel.setText("Live");
             addActivity("Market", ticker, "Trade printed at " + moneyLabel(price));
+            playMarketCue();
             priceSeries.getData().add(new XYChart.Data<>(++chartTick, price));
             if (priceSeries.getData().size() > MAX_CHART_POINTS) {
                 priceSeries.getData().remove(0);
@@ -393,7 +401,13 @@ public class TradeHouseApp extends Application {
             setOffline();
             updateOrderFeedback(message, "feedback-error");
             addActivity("Network", "Server", message);
+            playErrorCue();
         });
+    }
+
+    private void toggleSound() {
+        soundEnabled = !soundEnabled;
+        updateSoundButtonLabel();
     }
 
     private void toggleTheme() {
@@ -409,6 +423,10 @@ public class TradeHouseApp extends Application {
 
     private void updateThemeButtonLabel() {
         themeButton.setText(darkTheme ? "Light" : "Dark");
+    }
+
+    private void updateSoundButtonLabel() {
+        soundButton.setText(soundEnabled ? "Sound On" : "Muted");
     }
 
     private boolean isSystemDarkTheme() {
@@ -538,11 +556,13 @@ public class TradeHouseApp extends Application {
     private void acknowledgePendingOrder() {
         if (pendingOrder == null) {
             updateOrderFeedback("Server accepted the request.", "feedback-success");
+            playSuccessCue();
             return;
         }
 
         updateOrderFeedback("Server accepted " + pendingOrder.summary() + ".", "feedback-success");
         addActivity("Accepted", pendingOrder.ticker(), pendingOrder.summary());
+        playSuccessCue();
         pendingOrder = null;
     }
 
@@ -551,17 +571,20 @@ public class TradeHouseApp extends Application {
         if (pendingOrder == null) {
             updateOrderFeedback(displayReason, "feedback-error");
             addActivity("Rejected", "Server", displayReason);
+            playErrorCue();
             return;
         }
 
         updateOrderFeedback(displayReason, "feedback-error");
         addActivity("Rejected", pendingOrder.ticker(), pendingOrder.summary() + " - " + displayReason);
+        playErrorCue();
         pendingOrder = null;
     }
 
     private void rejectInput(String message) {
         updateOrderFeedback(message, "feedback-error");
         addActivity("Input", "Local", message);
+        playErrorCue();
     }
 
     private void updateOrderFeedback(String message, String stateClass) {
@@ -574,6 +597,24 @@ public class TradeHouseApp extends Application {
         activityRows.add(0, new ActivityRow(LocalTime.now().format(TIME_FORMAT), event, ticker, details));
         if (activityRows.size() > MAX_ACTIVITY_ROWS) {
             activityRows.remove(MAX_ACTIVITY_ROWS, activityRows.size());
+        }
+    }
+
+    private void playSuccessCue() {
+        if (soundEnabled) {
+            AudioCue.success();
+        }
+    }
+
+    private void playErrorCue() {
+        if (soundEnabled) {
+            AudioCue.error();
+        }
+    }
+
+    private void playMarketCue() {
+        if (soundEnabled) {
+            AudioCue.market();
         }
     }
 

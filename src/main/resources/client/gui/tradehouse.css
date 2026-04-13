@@ -203,7 +203,7 @@
 }
 
 .primary-button,
-.theme-toggle,
+.utility-button,
 .status-pill {
     -fx-background-radius: 8;
     -fx-border-radius: 8;
@@ -237,18 +237,18 @@
     -fx-opacity: 0.45;
 }
 
-.theme-toggle {
+.utility-button {
     -fx-background-color: -app-panel-soft;
     -fx-border-color: -app-border;
     -fx-text-fill: -app-text;
     -fx-padding: 8 14;
 }
 
-.theme-toggle:hover {
+.utility-button:hover {
     -fx-background-color: derive(-app-panel-soft, 8%);
 }
 
-.theme-toggle:pressed {
+.utility-button:pressed {
     -fx-background-color: -app-accent;
     -fx-text-fill: #03100b;
 }
