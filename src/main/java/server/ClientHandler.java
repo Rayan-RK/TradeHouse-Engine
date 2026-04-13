@@ -46,6 +46,11 @@ public class ClientHandler implements Runnable {
                     continue;
                 }
 
+                if (clientMessage.toUpperCase().startsWith("VOLATILITY:")) {
+                    handleVolatility(clientMessage, session);
+                    continue;
+                }
+
                 Order newOrder = CommandParser.parseOrder(clientMessage);
                 
                 if (newOrder != null) {
@@ -112,5 +117,15 @@ public class ClientHandler implements Runnable {
         } catch (NumberFormatException e) {
             session.sendMessage("SERVER_ERROR: Invalid starting balance for LOGIN.");
         }
+    }
+
+    private void handleVolatility(String clientMessage, ClientSession session) {
+        String[] parts = clientMessage.split(":", -1);
+        if (parts.length != 2 || !BotEngine.setVolatilityMode(parts[1])) {
+            session.sendMessage("SERVER_ERROR: VOLATILITY must be NORMAL or WILD.");
+            return;
+        }
+
+        Server.broadcast("VOLATILITY_UPDATE:" + BotEngine.getVolatilityMode());
     }
 }

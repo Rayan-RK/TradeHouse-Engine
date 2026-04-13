@@ -5,7 +5,9 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
@@ -73,10 +75,13 @@ public class TradeHouseApp extends Application {
     private final ObservableList<ActivityRow> activityRows = FXCollections.observableArrayList();
     private final TableView<ActivityRow> activityTable = new TableView<>(activityRows);
     private final Map<String, Double> latestPrices = new HashMap<>(STARTING_PRICES);
+    private final Map<String, List<Double>> priceHistory = new HashMap<>();
+    private final ComboBox<String> volatilityBox = new ComboBox<>();
     private final Button soundButton = new Button();
     private final Button themeButton = new Button();
 
     private BorderPane root;
+    private LineChart<Number, Number> marketChart;
     private ClientNetwork network;
     private PendingOrder pendingOrder;
     private int chartTick = 5;
@@ -139,7 +144,15 @@ public class TradeHouseApp extends Application {
         themeButton.setOnAction(event -> toggleTheme());
         updateThemeButtonLabel();
 
-        HBox header = new HBox(18, titleBlock, spacer(), statusLabel, soundButton, themeButton);
+        volatilityBox.getItems().addAll("Normal", "Wild");
+        volatilityBox.setValue("Normal");
+        volatilityBox.setPrefWidth(108);
+        volatilityBox.getStyleClass().add("volatility-select");
+        volatilityBox.setOnAction(event -> sendVolatilitySetting());
+        HBox volatilityControl = new HBox(8, formLabel("Volatility"), volatilityBox);
+        volatilityControl.setAlignment(Pos.CENTER_LEFT);
+
+        HBox header = new HBox(18, titleBlock, spacer(), volatilityControl, statusLabel, soundButton, themeButton);
         header.getStyleClass().add("top-bar");
         header.setAlignment(Pos.CENTER_LEFT);
         return header;
@@ -207,23 +220,17 @@ public class TradeHouseApp extends Application {
         xAxis.setLabel("Tick");
         yAxis.setLabel("Price");
 
-        LineChart<Number, Number> chart = new LineChart<>(xAxis, yAxis);
-        chart.getStyleClass().add("market-chart");
-        chart.setTitle("Live Market");
-        chart.setAnimated(false);
-        chart.setLegendVisible(false);
-        chart.setCreateSymbols(false);
+        marketChart = new LineChart<>(xAxis, yAxis);
+        marketChart.getStyleClass().add("market-chart");
+        marketChart.setTitle(DEFAULT_TICKER + " Market Pulse");
+        marketChart.setAnimated(false);
+        marketChart.setLegendVisible(false);
+        marketChart.setCreateSymbols(false);
+        marketChart.getData().add(priceSeries);
 
-        priceSeries.getData().add(new XYChart.Data<>(1, 146));
-        priceSeries.getData().add(new XYChart.Data<>(2, 149));
-        priceSeries.getData().add(new XYChart.Data<>(3, 147));
-        priceSeries.getData().add(new XYChart.Data<>(4, 151));
-        priceSeries.getData().add(new XYChart.Data<>(5, 150));
-        chart.getData().add(priceSeries);
-
-        VBox chartPanel = new VBox(10, sectionTitle("Market Pulse"), chart);
+        VBox chartPanel = new VBox(10, sectionTitle("Market Pulse"), marketChart);
         chartPanel.getStyleClass().add("surface-panel");
-        VBox.setVgrow(chart, Priority.ALWAYS);
+        VBox.setVgrow(marketChart, Priority.ALWAYS);
         return chartPanel;
     }
 
@@ -351,6 +358,7 @@ public class TradeHouseApp extends Application {
         network.connect();
         setStatus("Connected", true);
         addActivity("Connected", "Server", SERVER_HOST + ":" + SERVER_PORT);
+        sendVolatilitySetting();
     }
 
     // Server messages are routed onto the JavaFX thread before touching controls.
@@ -376,6 +384,8 @@ public class TradeHouseApp extends Application {
                 handleAccountUpdate(message);
             } else if (message.startsWith("MARKET_UPDATE:")) {
                 handleMarketUpdate(message);
+            } else if (message.startsWith("VOLATILITY_UPDATE:")) {
+                handleVolatilityUpdate(message);
             } else if (message.startsWith("CONNECTION_SUCCESS:")) {
                 addActivity("Connected", "Server", message.substring("CONNECTION_SUCCESS:".length()).trim());
             } else if ("PING".equalsIgnoreCase(message)) {
@@ -407,7 +417,9 @@ public class TradeHouseApp extends Application {
         try {
             String ticker = parts[1];
             double price = Double.parseDouble(parts[2]);
+            double previousPrice = latestPrices.getOrDefault(ticker, price);
             latestPrices.put(ticker, price);
+            recordPrice(ticker, price);
 
             if (!ticker.equals(selectedTicker)) {
                 feedStateLabel.setText("Live");
@@ -425,9 +437,16 @@ public class TradeHouseApp extends Application {
             if (priceSeries.getData().size() > MAX_CHART_POINTS) {
                 priceSeries.getData().remove(0);
             }
+            applyChartDirection(price, previousPrice);
         } catch (NumberFormatException e) {
             addActivity("Ignored", "Market", "Malformed update: " + message);
         }
+    }
+
+    private void handleVolatilityUpdate(String message) {
+        String mode = message.substring("VOLATILITY_UPDATE:".length()).trim().toUpperCase(Locale.ROOT);
+        feedStateLabel.setText(displayVolatilityMode(mode) + " volatility");
+        addActivity("Volatility", "Bot", displayVolatilityMode(mode));
     }
 
     private void handleNetworkError(String message) {
@@ -531,16 +550,44 @@ public class TradeHouseApp extends Application {
         double price = latestPrices.getOrDefault(ticker, STARTING_PRICES.getOrDefault(ticker, 150.00));
         lastPriceLabel.setText(moneyLabel(price));
         feedStateLabel.setText("Watching " + ticker);
-        resetChart(price);
+        renderSelectedTickerChart(price);
         updateSuggestedOrderPrice(true);
     }
 
-    private void resetChart(double price) {
+    private void renderSelectedTickerChart(double fallbackPrice) {
         priceSeries.getData().clear();
         chartTick = 0;
-        for (int i = 0; i < 5; i++) {
-            priceSeries.getData().add(new XYChart.Data<>(++chartTick, price));
+        if (marketChart != null) {
+            marketChart.setTitle(selectedTicker + " Market Pulse");
         }
+
+        List<Double> history = priceHistory.get(selectedTicker);
+        if (history == null || history.isEmpty()) {
+            history = List.of(fallbackPrice, fallbackPrice, fallbackPrice, fallbackPrice, fallbackPrice);
+        }
+
+        int start = Math.max(0, history.size() - MAX_CHART_POINTS);
+        for (int i = start; i < history.size(); i++) {
+            priceSeries.getData().add(new XYChart.Data<>(++chartTick, history.get(i)));
+        }
+        applyChartDirection(history.get(history.size() - 1), history.get(Math.max(0, history.size() - 2)));
+    }
+
+    private void recordPrice(String ticker, double price) {
+        List<Double> history = priceHistory.computeIfAbsent(ticker, key -> new ArrayList<>());
+        history.add(price);
+        if (history.size() > MAX_CHART_POINTS) {
+            history.remove(0);
+        }
+    }
+
+    private void applyChartDirection(double price, double previousPrice) {
+        var line = priceSeries.getNode();
+        if (line == null) {
+            return;
+        }
+        line.getStyleClass().removeAll("chart-up", "chart-down");
+        line.getStyleClass().add(price < previousPrice ? "chart-down" : "chart-up");
     }
 
     private void updateSuggestedOrderPrice(boolean force) {
@@ -552,6 +599,28 @@ public class TradeHouseApp extends Application {
         double spread = Math.max(0.25, marketPrice * 0.002);
         double suggestedPrice = "SELL".equals(sideBox.getValue()) ? marketPrice - spread : marketPrice + spread;
         priceField.setText(moneyText(Math.max(0.01, suggestedPrice)));
+    }
+
+    private void sendVolatilitySetting() {
+        if (network == null || !network.isConnected()) {
+            feedStateLabel.setText(displayVolatilityMode(selectedVolatilityMode()) + " volatility");
+            return;
+        }
+
+        try {
+            network.send("VOLATILITY:" + selectedVolatilityMode());
+        } catch (RuntimeException e) {
+            addActivity("Volatility", "Bot", "Could not update volatility: " + e.getMessage());
+        }
+    }
+
+    private String selectedVolatilityMode() {
+        String mode = volatilityBox.getValue();
+        return mode == null ? "NORMAL" : mode.trim().toUpperCase(Locale.ROOT);
+    }
+
+    private String displayVolatilityMode(String mode) {
+        return "WILD".equals(mode) ? "Wild" : "Normal";
     }
 
     // Local validation keeps obvious bad orders out of the socket protocol.

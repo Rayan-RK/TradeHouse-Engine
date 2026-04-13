@@ -249,6 +249,13 @@
     -fx-padding: 8 14;
 }
 
+.volatility-select {
+    -fx-background-color: -app-panel-soft;
+    -fx-border-color: -app-border;
+    -fx-border-radius: 8;
+    -fx-background-radius: 8;
+}
+
 .utility-button:hover {
     -fx-background-color: derive(-app-panel-soft, 8%);
 }
@@ -303,4 +310,12 @@
 .default-color0.chart-series-line {
     -fx-stroke: -app-accent;
     -fx-stroke-width: 3px;
+}
+
+.default-color0.chart-series-line.chart-up {
+    -fx-stroke: -app-accent;
+}
+
+.default-color0.chart-series-line.chart-down {
+    -fx-stroke: -app-danger;
 }
