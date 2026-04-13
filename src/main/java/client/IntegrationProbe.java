@@ -21,7 +21,7 @@ public class IntegrationProbe {
 
     public static void main(String[] args) throws Exception {
         String suffix = Long.toString(System.currentTimeMillis());
-        String tradeTicker = "TP" + suffix;
+        String tradeTicker = "TH" + suffix;
         String openTicker = "TO" + suffix;
         String user = "PROBE" + suffix;
         long ledgerRowsBefore = countRows(DATA_DIR.resolve("ledger.csv"));
@@ -30,26 +30,32 @@ public class IntegrationProbe {
             buyer.expect("CONNECTION_SUCCESS");
             seller.expect("CONNECTION_SUCCESS");
 
+            buyer.send("LOGIN:" + user + ":1000");
+            buyer.expect("ACCOUNT_UPDATE:" + user + ":1000.00:1000.00:NONE");
+
             buyer.send("BUY:" + tradeTicker + ":150.00:2");
+            buyer.expect("ACCOUNT_UPDATE:" + user + ":1000.00:700.00:NONE");
+            buyer.expect("SERVER_ACK");
             seller.send("SELL:" + tradeTicker + ":145.00:1");
             buyer.expect("MARKET_UPDATE:" + tradeTicker + ":145.00");
+            buyer.expect("ACCOUNT_UPDATE:" + user + ":855.00:705.00:" + tradeTicker + "=1");
             seller.expect("MARKET_UPDATE:" + tradeTicker + ":145.00");
             buyer.expect("PING");
 
-            buyer.send("LOGIN:" + user + ":1000");
-            buyer.expect("ACCOUNT_UPDATE:" + user + ":1000.00:1000.00:NONE");
             buyer.send("BUY:" + openTicker + ":10.00:1");
-            buyer.expect("ACCOUNT_UPDATE:" + user + ":1000.00:990.00:NONE");
+            buyer.expect("ACCOUNT_UPDATE:" + user + ":855.00:695.00:" + tradeTicker + "=1");
             buyer.expect("SERVER_ACK");
         }
 
         require(countRows(DATA_DIR.resolve("ledger.csv")) > ledgerRowsBefore, "ledger.csv should append a trade");
         require(Files.readString(DATA_DIR.resolve("accounts.csv")).contains(user + ","),
                 "accounts.csv should include " + user);
+        require(Files.readString(DATA_DIR.resolve("accounts.csv")).contains(tradeTicker + "=1"),
+                "accounts.csv should include the filled holding");
         require(Files.readString(DATA_DIR.resolve("open_orders.csv")).contains(user + ",BUY," + openTicker),
                 "open_orders.csv should include the reserved order");
 
-        System.out.println("[INTEGRATION PROBE] PASS multi-client broadcast, heartbeat, and persistence checks.");
+        System.out.println("[INTEGRATION PROBE] PASS multi-client broadcast, holdings, heartbeat, and persistence checks.");
     }
 
     private static long countRows(Path path) throws IOException {

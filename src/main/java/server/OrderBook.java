@@ -74,6 +74,27 @@ public class OrderBook {
         return new HashMap<>(currentPrices);
     }
 
+    public synchronized void publishMarketTick(String ticker, double price) {
+        currentPrices.put(ticker, price);
+        Server.broadcast(String.format("MARKET_UPDATE:%s:%.2f", ticker, price));
+    }
+
+    public synchronized void replaceBotLiquidity(String botUsername, List<Order> botOrders) {
+        removeOrdersByUsername(buyOrders, botUsername, new ArrayList<>());
+        removeOrdersByUsername(sellOrders, botUsername, new ArrayList<>());
+
+        for (Order order : botOrders) {
+            if ("BUY".equals(order.getType())) {
+                buyOrders.add(copyOrder(order));
+            } else if ("SELL".equals(order.getType())) {
+                sellOrders.add(copyOrder(order));
+            }
+        }
+
+        attemptMatch();
+        persistOpenOrders();
+    }
+
     // Heartbeat cleanup uses this to release reservations for users who disconnect.
     public synchronized void cancelOrdersForUser(String username) {
         if (username == null || username.isBlank()) {

@@ -5,7 +5,9 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
+import java.util.HashMap;
 import java.util.Locale;
+import java.util.Map;
 
 import javafx.application.Application;
 import javafx.application.Platform;
@@ -38,6 +40,15 @@ import javafx.stage.Stage;
 public class TradeHouseApp extends Application {
     private static final String SERVER_HOST = "127.0.0.1";
     private static final int SERVER_PORT = 8080;
+    private static final String DEFAULT_TICKER = "AAPL";
+    private static final String[] WATCHLIST = {"AAPL", "MSFT", "TSLA", "GOOGL", "AMZN", "BTC"};
+    private static final Map<String, Double> STARTING_PRICES = Map.of(
+            "AAPL", 150.00,
+            "MSFT", 420.00,
+            "TSLA", 250.00,
+            "GOOGL", 175.00,
+            "AMZN", 185.00,
+            "BTC", 65000.00);
     private static final int MAX_CHART_POINTS = 30;
     private static final int MAX_ACTIVITY_ROWS = 12;
     private static final DateTimeFormatter TIME_FORMAT = DateTimeFormatter.ofPattern("HH:mm:ss");
@@ -47,20 +58,21 @@ public class TradeHouseApp extends Application {
     private final Label cashLabel = valueLabel("Waiting");
     private final Label availableCashLabel = valueLabel("--");
     private final Label holdingsLabel = valueLabel("None");
-    private final Label lastPriceLabel = valueLabel("--");
-    private final Label activeTickerLabel = valueLabel("AAPL");
+    private final Label lastPriceLabel = valueLabel(moneyLabel(STARTING_PRICES.get(DEFAULT_TICKER)));
+    private final Label activeTickerLabel = valueLabel(DEFAULT_TICKER);
     private final Label feedStateLabel = valueLabel("Idle");
     private final Label orderFeedbackLabel = bodyText("Login before submitting an order.");
     private final TextField usernameField = new TextField();
     private final TextField balanceField = new TextField("10000");
     private final ComboBox<String> sideBox = new ComboBox<>();
     private final ComboBox<String> tickerBox = new ComboBox<>();
-    private final TextField priceField = new TextField("150.00");
-    private final TextField quantityField = new TextField("10");
+    private final TextField priceField = new TextField();
+    private final TextField quantityField = new TextField("5");
     private final Button submitButton = new Button("Submit Order");
     private final XYChart.Series<Number, Number> priceSeries = new XYChart.Series<>();
     private final ObservableList<ActivityRow> activityRows = FXCollections.observableArrayList();
     private final TableView<ActivityRow> activityTable = new TableView<>(activityRows);
+    private final Map<String, Double> latestPrices = new HashMap<>(STARTING_PRICES);
     private final Button soundButton = new Button();
     private final Button themeButton = new Button();
 
@@ -68,6 +80,7 @@ public class TradeHouseApp extends Application {
     private ClientNetwork network;
     private PendingOrder pendingOrder;
     private int chartTick = 5;
+    private String selectedTicker = DEFAULT_TICKER;
     private boolean darkTheme;
     private boolean soundEnabled = true;
 
@@ -84,6 +97,7 @@ public class TradeHouseApp extends Application {
 
         root.setTop(buildHeader());
         root.setCenter(buildWorkspace());
+        selectTicker(DEFAULT_TICKER);
 
         applyTheme(darkTheme);
 
@@ -219,10 +233,12 @@ public class TradeHouseApp extends Application {
         sideBox.setValue("BUY");
         sideBox.setMaxWidth(Double.MAX_VALUE);
 
-        tickerBox.getItems().addAll("AAPL", "MSFT", "TSLA", "GOOGL", "AMZN", "BTC");
-        tickerBox.setValue("AAPL");
+        tickerBox.getItems().addAll(WATCHLIST);
+        tickerBox.setValue(DEFAULT_TICKER);
         tickerBox.setMaxWidth(Double.MAX_VALUE);
-        tickerBox.setOnAction(event -> activeTickerLabel.setText(tickerBox.getValue()));
+        tickerBox.setOnAction(event -> selectTicker(tickerBox.getValue()));
+
+        sideBox.setOnAction(event -> updateSuggestedOrderPrice(true));
 
         submitButton.getStyleClass().add("primary-button");
         submitButton.setMaxWidth(Double.MAX_VALUE);
@@ -391,10 +407,19 @@ public class TradeHouseApp extends Application {
         try {
             String ticker = parts[1];
             double price = Double.parseDouble(parts[2]);
-            activeTickerLabel.setText(ticker);
+            latestPrices.put(ticker, price);
+
+            if (!ticker.equals(selectedTicker)) {
+                feedStateLabel.setText("Live");
+                return;
+            }
+
             lastPriceLabel.setText(String.format("$%.2f", price));
-            feedStateLabel.setText("Live");
-            addActivity("Market", ticker, "Trade printed at " + moneyLabel(price));
+            feedStateLabel.setText("Live " + ticker);
+            updateSuggestedOrderPrice(false);
+            if (chartTick % 5 == 0) {
+                addActivity("Market", ticker, "Live price " + moneyLabel(price));
+            }
             playMarketCue();
             priceSeries.getData().add(new XYChart.Data<>(++chartTick, price));
             if (priceSeries.getData().size() > MAX_CHART_POINTS) {
@@ -494,6 +519,39 @@ public class TradeHouseApp extends Application {
         statusLabel.setText(text);
         statusLabel.getStyleClass().removeAll("status-online", "status-offline");
         statusLabel.getStyleClass().add(online ? "status-online" : "status-offline");
+    }
+
+    private void selectTicker(String ticker) {
+        if (ticker == null || ticker.isBlank()) {
+            return;
+        }
+
+        selectedTicker = ticker;
+        activeTickerLabel.setText(ticker);
+        double price = latestPrices.getOrDefault(ticker, STARTING_PRICES.getOrDefault(ticker, 150.00));
+        lastPriceLabel.setText(moneyLabel(price));
+        feedStateLabel.setText("Watching " + ticker);
+        resetChart(price);
+        updateSuggestedOrderPrice(true);
+    }
+
+    private void resetChart(double price) {
+        priceSeries.getData().clear();
+        chartTick = 0;
+        for (int i = 0; i < 5; i++) {
+            priceSeries.getData().add(new XYChart.Data<>(++chartTick, price));
+        }
+    }
+
+    private void updateSuggestedOrderPrice(boolean force) {
+        if (!force && priceField.isFocused()) {
+            return;
+        }
+
+        double marketPrice = latestPrices.getOrDefault(selectedTicker, STARTING_PRICES.getOrDefault(selectedTicker, 150.00));
+        double spread = Math.max(0.25, marketPrice * 0.002);
+        double suggestedPrice = "SELL".equals(sideBox.getValue()) ? marketPrice - spread : marketPrice + spread;
+        priceField.setText(moneyText(Math.max(0.01, suggestedPrice)));
     }
 
     // Local validation keeps obvious bad orders out of the socket protocol.
