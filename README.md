@@ -6,7 +6,7 @@ TradeHouse is a multi-threaded Java client/server market simulation. The server 
 
 - `src/main/java/server/`: Server, client handlers, order book, bots, persistence, and heartbeat logic
 - `src/main/java/shared/`: Shared `Order` model
-- `src/main/java/client/`: `TestClient` backend validation client
+- `src/main/java/client/`: Console validation clients, including `TestClient` and `IntegrationProbe`
 - `src/main/java/client/gui/`: JavaFX GUI and socket client
 - `src/main/resources/client/gui/`: JavaFX CSS theme resources
 - `data/`: Server-side ledger storage
@@ -43,6 +43,14 @@ Start the backend test client in another terminal:
 ```bash
 mvn exec:java -Dexec.mainClass=client.TestClient
 ```
+
+Run the integration probe against a server started with `--no-bots`:
+
+```bash
+mvn exec:java -Dexec.mainClass=client.IntegrationProbe
+```
+
+The probe checks two-client market broadcasts, heartbeat `PING`/`PONG`, and CSV persistence evidence for the ledger, accounts, and open orders.
 
 ## JavaFX GUI
 
