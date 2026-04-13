@@ -43,15 +43,16 @@ You may edit the "Task" column to reflect your own tasks.*
 | **Multi-threaded Server (Bots)** | Rayan Khan | Implemented server startup, client thread handling, order-book matching flow, and market-maker bot support. |
 | **Socket Networking (Order Engine)** | Rayan Khan | Implemented the socket protocol for login, buy/sell order submission, server acknowledgements, market updates, and heartbeat messages. |
 | **GUI Implementation (Live Graphs)** | Karan Bhaskar | Implemented the Maven-based JavaFX dashboard, socket client, login/order controls, live chart updates, portfolio/account display, and activity table. |
+| **Client Integration Plumbing** | Karan Bhaskar | Added client-side helper functions and GUI-to-server plumbing for the app menu, volatility/volume controls, add-funds flow, and session profit/loss display while preserving the assigned server, networking, and persistence ownership. |
 | **Persistence (File I/O & Ledger)** | Mohammad Ali Jafari | Implemented CSV ledger/account/open-order storage and server startup restoration using server-side File I/O. |
 | **UX/Sound Effects** | Karan Bhaskar | Implemented the modern dark/light JavaFX theme, inline user feedback, sound toggle, and generated success/error/market audio cues. |
-| **Documentation/README (Heartbeats)** | Mohammad Ali Jafari | Documented persistence and heartbeat behavior; final README polish includes Maven run instructions, integration probe usage, references, AI disclosure, and placeholders for screenshot/demo links. |
+| **Documentation/README (Heartbeats)** | Mohammad Ali Jafari | Documented persistence and heartbeat behavior; final README polish includes Maven run instructions, backend check usage, references, AI disclosure, and placeholders for screenshot/demo links. |
 
 ## 4. Final Contribution Status (Tag one at Final Submission)
 
 At the end of the project, the team must agree on one of the following tags:
 
-* **[ ] (1) EVEN CONTRIBUTION:** All members met expectations from the original charter.
+* **[x] (1) EVEN CONTRIBUTION:** All members met expectations from the original charter.
 * **[ ] (2) UNEVEN CONTRIBUTION:** One or more members did not meet expectations.
 
 *Note: The team should select one final contribution status before submission. Graders will use the "Actual Contribution" column above to apply uneven grades if necessary.*

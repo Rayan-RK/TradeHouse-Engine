@@ -12,22 +12,20 @@ TradeHouse is a multi-threaded Java market simulation where multiple socket clie
 
 TODO: Add a screenshot of the JavaFX dashboard running before final submission.
 
-## Demo
+## Video Link
 
-TODO: Add the 2-5 minute demo video URL before final submission.
-
-The recording should show server startup, at least two clients, login, order submission, live market updates, account/portfolio feedback, CSV persistence, and heartbeat behavior.
+TODO: Add the final video URL before submission.
 
 ## Features
 
 - Multi-client socket server on port `8080`
 - Threaded client handlers and server-side market-maker bots
 - Synchronized order book with partial fills and price-priority matching
-- JavaFX trading dashboard with live charting, order ticket, account panel, activity table, dark/light theme toggle, and sound toggle
+- JavaFX trading dashboard with live charting, order ticket, account panel, activity table, dark/light theme toggle, app-menu volatility/volume controls, and About window
 - Client socket reader thread that responds to heartbeat `PING` with `PONG`
-- Server-driven account updates for cash, available cash, and holdings
+- Server-driven account updates for cash, available cash, holdings, add-funds requests, and session profit/loss display
 - CSV persistence for completed trades, account snapshots, and open orders
-- Deterministic integration probe for multi-client broadcast, heartbeat, and persistence checks
+- Automated backend check for two-client trading, heartbeat, and persistence
 
 ## Requirements
 
@@ -44,39 +42,47 @@ cd w26-csci2020u-finalproject-w26-team55
 mvn clean compile
 ```
 
-## Run
+## Run the Application
 
-Start the server:
+Terminal 1: start the socket server. It listens for clients on port `8080`. Market-maker bots are enabled by default, so prices move on their own.
 
 ```bash
 mvn exec:java -Dexec.mainClass=server.Server
 ```
 
-Start the server without market-maker bots for deterministic testing:
-
-```bash
-mvn exec:java -Dexec.mainClass=server.Server -Dexec.args=--no-bots
-```
-
-Run the JavaFX GUI in another terminal:
+Terminal 2: start the JavaFX GUI.
 
 ```bash
 mvn javafx:run
 ```
 
-Run the console backend test client:
+This is the normal way to run and use TradeHouse.
+
+### Optional Developer Checks
+
+These commands are for someone who wants to inspect the socket/backend behavior without relying on the GUI.
+
+To make backend checks easier, start the server with bots turned off. The server still uses port `8080`; `--no-bots` only disables robot traders so prices change from submitted orders instead of background bot activity.
+
+```bash
+mvn exec:java -Dexec.mainClass=server.Server -Dexec.args=--no-bots
+```
+
+Run the simple text-only client:
 
 ```bash
 mvn exec:java -Dexec.mainClass=client.TestClient
 ```
 
-Run the deterministic integration probe against a server started with `--no-bots`:
+This client sends one buy order and one sell order for `AAPL` and prints the server messages. It is a quick socket check, not the main UI.
+
+Run the fuller backend check in another terminal while the server is running with `--no-bots`:
 
 ```bash
 mvn exec:java -Dexec.mainClass=client.IntegrationProbe
 ```
 
-The probe checks two-client market broadcasts, heartbeat `PING`/`PONG`, and CSV persistence evidence for the ledger, accounts, and open orders.
+`IntegrationProbe` is a small Java program that acts like two socket clients. It logs in, adds funds, submits buy/sell orders, verifies the trade broadcast, responds to heartbeat `PING`/`PONG`, and confirms CSV persistence evidence for the ledger, accounts, and open orders.
 
 ## Protocol
 
@@ -87,6 +93,9 @@ Client to server:
 - `SELL:TICKER:PRICE:QUANTITY`
 - `USERNAME:BUY:TICKER:PRICE:QUANTITY`
 - `USERNAME:SELL:TICKER:PRICE:QUANTITY`
+- `ADD_FUNDS:AMOUNT`
+- `VOLATILITY:NORMAL`
+- `VOLATILITY:WILD`
 - `PONG`
 
 Server to client:
@@ -97,7 +106,10 @@ Server to client:
 - `SERVER_ACK:...`
 - `SERVER_ERROR:...`
 - `MARKET_UPDATE:TICKER:PRICE`
+- `FUNDS_ADDED:USERNAME:AMOUNT`
+- `VOLATILITY_UPDATE:MODE`
 - `PING`
+- `PONG`
 
 ## Persistence
 
@@ -107,7 +119,7 @@ Runtime CSV files are created under `data/`:
 - `data/accounts.csv`: account balances and holdings
 - `data/open_orders.csv`: open buy/sell orders
 
-On startup, the server restores accounts, open orders, and last known market prices from those files. Runtime CSV files are ignored by Git so local demo/test data does not pollute commits.
+On startup, the server restores accounts, open orders, and last known market prices from those files. Runtime CSV files are ignored by Git so local data does not pollute commits.
 
 ## Project Structure
 
@@ -123,11 +135,11 @@ On startup, the server restores accounts, open orders, and last known market pri
 - Scope: multi-client trading simulation with GUI, live updates, persistence, and reliability behavior
 - Technology Requirements: sockets, multi-threading, JavaFX GUI, and server-side File I/O are all used meaningfully
 - README: project description, collaborators, run instructions, dependencies, references, AI disclosure, and media placeholders are included
-- Video Demo: TODO placeholder is present; final link must be added after recording
-- Overall Best Practices: Maven build, package organization, validation, error feedback, integration probe, and AI disclosure are included
-- Project Functionality: login, order submission, matching, market broadcasts, account updates, persistence restore, and heartbeat behavior are implemented
-- UI/UX: modern dashboard, live chart, theme toggle, sound toggle, inline feedback, portfolio panel, and activity history are implemented
-- Solution Quality: the remaining presentation risk is adding the final screenshot and demo URL
+- Video URL: TODO placeholder is present; final link must be added
+- Overall Best Practices: Maven build, package organization, validation, error feedback, automated backend check, and AI disclosure are included
+- Project Functionality: login, add funds, order submission, matching, market broadcasts, account updates, persistence restore, and heartbeat behavior are implemented
+- UI/UX: modern dashboard, live chart, theme toggle, app-menu volatility/volume controls, About window, inline feedback, portfolio panel, session profit/loss, and activity history are implemented
+- Solution Quality: the remaining presentation risk is adding the final screenshot and video URL
 
 ## References And Resources
 
@@ -138,4 +150,4 @@ On startup, the server restores accounts, open orders, and last known market pri
 
 ## AI Usage Disclosure
 
-AI assistance was used for UI color/theme ideas, CSS layout suggestions, socket integration troubleshooting, and project checklist planning. The team reviewed and tested the final work.
+AI was used as assistance, not as a replacement for the team's work. It helped with UI color/theme ideas, JavaFX/CSS layout suggestions, About-window wording, README/rubric checklist planning, and debugging specific integration issues. The core socket architecture, multi-threading flow, order-book behavior, and persistence approach remain team-owned, and the final code was reviewed, adjusted, and tested by the team.

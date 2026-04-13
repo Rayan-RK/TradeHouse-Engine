@@ -40,6 +40,10 @@
     -fx-border-width: 0 0 1 0;
 }
 
+.app-menu {
+    -fx-background-color: -app-panel;
+}
+
 .workspace {
     -fx-padding: 22;
     -fx-background-color: -app-bg;
@@ -206,6 +210,18 @@
     -fx-text-fill: -app-danger;
 }
 
+.pnl-profit {
+    -fx-text-fill: -app-accent-strong;
+}
+
+.pnl-loss {
+    -fx-text-fill: -app-danger;
+}
+
+.pnl-flat {
+    -fx-text-fill: -app-muted;
+}
+
 /* Buttons and status pills. */
 .primary-button,
 .utility-button,
@@ -247,13 +263,6 @@
     -fx-border-color: -app-border;
     -fx-text-fill: -app-text;
     -fx-padding: 8 14;
-}
-
-.volatility-select {
-    -fx-background-color: -app-panel-soft;
-    -fx-border-color: -app-border;
-    -fx-border-radius: 8;
-    -fx-background-radius: 8;
 }
 
 .utility-button:hover {

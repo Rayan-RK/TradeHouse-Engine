@@ -35,6 +35,14 @@ public class AccountManager {
         return accounts.get(username.toUpperCase());
     }
 
+    public synchronized UserAccount addFunds(String username, double amount) {
+        UserAccount account = getAccount(username);
+        if (account != null) {
+            account.adjustCash(amount);
+        }
+        return account;
+    }
+
     public synchronized String tryReserveForOrder(Order order) {
         if (Order.UNKNOWN_USER.equals(order.getUsername())) {
             return null;

@@ -17,18 +17,25 @@ import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.property.StringProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
+import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
 import javafx.scene.chart.LineChart;
 import javafx.scene.chart.NumberAxis;
 import javafx.scene.chart.XYChart;
 import javafx.scene.control.Button;
+import javafx.scene.control.CheckMenuItem;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
+import javafx.scene.control.Menu;
+import javafx.scene.control.MenuBar;
+import javafx.scene.control.MenuItem;
+import javafx.scene.control.RadioMenuItem;
 import javafx.scene.control.Separator;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
 import javafx.scene.control.TextField;
+import javafx.scene.control.ToggleGroup;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
@@ -60,32 +67,43 @@ public class TradeHouseApp extends Application {
     private final Label cashLabel = valueLabel("Waiting");
     private final Label availableCashLabel = valueLabel("--");
     private final Label holdingsLabel = valueLabel("None");
+    private final Label profitLossLabel = valueLabel("$0.00");
     private final Label lastPriceLabel = valueLabel(moneyLabel(STARTING_PRICES.get(DEFAULT_TICKER)));
     private final Label activeTickerLabel = valueLabel(DEFAULT_TICKER);
     private final Label feedStateLabel = valueLabel("Idle");
     private final Label orderFeedbackLabel = bodyText("Login before submitting an order.");
     private final TextField usernameField = new TextField();
     private final TextField balanceField = new TextField("10000");
+    private final TextField fundsField = new TextField("1000");
     private final ComboBox<String> sideBox = new ComboBox<>();
     private final ComboBox<String> tickerBox = new ComboBox<>();
     private final TextField priceField = new TextField();
     private final TextField quantityField = new TextField("5");
     private final Button submitButton = new Button("Submit Order");
+    private final Button addFundsButton = new Button("Add Funds");
     private final XYChart.Series<Number, Number> priceSeries = new XYChart.Series<>();
     private final ObservableList<ActivityRow> activityRows = FXCollections.observableArrayList();
     private final TableView<ActivityRow> activityTable = new TableView<>(activityRows);
     private final Map<String, Double> latestPrices = new HashMap<>(STARTING_PRICES);
     private final Map<String, List<Double>> priceHistory = new HashMap<>();
-    private final ComboBox<String> volatilityBox = new ComboBox<>();
-    private final Button soundButton = new Button();
+    private final RadioMenuItem normalVolatilityItem = new RadioMenuItem("Normal");
+    private final RadioMenuItem wildVolatilityItem = new RadioMenuItem("Wild");
+    private final CheckMenuItem soundMenuItem = new CheckMenuItem("Sound On");
     private final Button themeButton = new Button();
+    private final Map<String, Integer> currentHoldings = new HashMap<>();
 
     private BorderPane root;
     private LineChart<Number, Number> marketChart;
+    private Stage primaryStage;
+    private Stage aboutStage;
+    private VBox aboutRoot;
     private ClientNetwork network;
     private PendingOrder pendingOrder;
     private int chartTick = 5;
     private String selectedTicker = DEFAULT_TICKER;
+    private double startingBalanceBaseline;
+    private double currentCash;
+    private boolean sessionBaselineReady;
     private boolean darkTheme;
     private boolean soundEnabled = true;
 
@@ -95,16 +113,19 @@ public class TradeHouseApp extends Application {
 
     @Override
     public void start(Stage stage) {
+        primaryStage = stage;
+        startingBalanceBaseline = 0;
+        currentCash = startingBalanceBaseline;
         darkTheme = isSystemDarkTheme();
 
         root = new BorderPane();
         root.getStyleClass().add("app-root");
 
-        root.setTop(buildHeader());
+        root.setTop(buildTopArea());
         root.setCenter(buildWorkspace());
         selectTicker(DEFAULT_TICKER);
 
-        applyTheme(darkTheme);
+        applyTheme();
 
         Scene scene = new Scene(root, 1180, 740);
         String stylesheet = getClass().getResource("/client/gui/tradehouse.css").toExternalForm();
@@ -124,7 +145,42 @@ public class TradeHouseApp extends Application {
         }
     }
 
-    // Header keeps the live status plus sound and theme controls in one place.
+    private VBox buildTopArea() {
+        return new VBox(buildMenuBar(), buildHeader());
+    }
+
+    // AI assisted with menu placement ideas; the JavaFX wiring was reviewed and tested by the team.
+    private MenuBar buildMenuBar() {
+        MenuItem aboutItem = new MenuItem("About TradeHouse");
+        aboutItem.setOnAction(event -> showAboutWindow());
+
+        Menu appMenu = new Menu("About");
+        appMenu.getItems().add(aboutItem);
+
+        ToggleGroup volatilityGroup = new ToggleGroup();
+        normalVolatilityItem.setToggleGroup(volatilityGroup);
+        wildVolatilityItem.setToggleGroup(volatilityGroup);
+        normalVolatilityItem.setSelected(true);
+        normalVolatilityItem.setOnAction(event -> sendVolatilitySetting());
+        wildVolatilityItem.setOnAction(event -> sendVolatilitySetting());
+
+        Menu volatilityMenu = new Menu("Volatility");
+        volatilityMenu.getItems().addAll(normalVolatilityItem, wildVolatilityItem);
+
+        soundMenuItem.setSelected(soundEnabled);
+        soundMenuItem.setOnAction(event -> setSoundEnabled(soundMenuItem.isSelected()));
+        updateSoundMenuLabel();
+
+        Menu volumeMenu = new Menu("Volume");
+        volumeMenu.getItems().add(soundMenuItem);
+
+        MenuBar menuBar = new MenuBar(appMenu, volatilityMenu, volumeMenu);
+        menuBar.setUseSystemMenuBar(true);
+        menuBar.getStyleClass().add("app-menu");
+        return menuBar;
+    }
+
+    // Header keeps status visible while secondary app settings live in the menu bar.
     private HBox buildHeader() {
         Label eyebrow = new Label("MARKET SIMULATION");
         eyebrow.getStyleClass().add("eyebrow");
@@ -136,23 +192,11 @@ public class TradeHouseApp extends Application {
 
         statusLabel.getStyleClass().addAll("status-pill", "status-offline");
 
-        soundButton.getStyleClass().add("utility-button");
-        soundButton.setOnAction(event -> toggleSound());
-        updateSoundButtonLabel();
-
         themeButton.getStyleClass().add("utility-button");
         themeButton.setOnAction(event -> toggleTheme());
         updateThemeButtonLabel();
 
-        volatilityBox.getItems().addAll("Normal", "Wild");
-        volatilityBox.setValue("Normal");
-        volatilityBox.setPrefWidth(108);
-        volatilityBox.getStyleClass().add("volatility-select");
-        volatilityBox.setOnAction(event -> sendVolatilitySetting());
-        HBox volatilityControl = new HBox(8, formLabel("Volatility"), volatilityBox);
-        volatilityControl.setAlignment(Pos.CENTER_LEFT);
-
-        HBox header = new HBox(18, titleBlock, spacer(), volatilityControl, statusLabel, soundButton, themeButton);
+        HBox header = new HBox(18, titleBlock, spacer(), statusLabel, themeButton);
         header.getStyleClass().add("top-bar");
         header.setAlignment(Pos.CENTER_LEFT);
         return header;
@@ -168,14 +212,23 @@ public class TradeHouseApp extends Application {
     }
 
     // Left panel handles login and shows the server-owned portfolio snapshot.
+    // AI helped compare compact account-panel layouts; server state remains the source of truth.
     private VBox buildAccountPanel() {
         usernameField.setPromptText("Username");
         balanceField.setPromptText("Starting balance");
+        fundsField.setPromptText("Amount");
+        profitLossLabel.getStyleClass().add("pnl-flat");
 
         Button loginButton = new Button("Connect and Login");
         loginButton.getStyleClass().add("primary-button");
         loginButton.setMaxWidth(Double.MAX_VALUE);
         loginButton.setOnAction(event -> connectAndLogin());
+
+        addFundsButton.getStyleClass().add("utility-button");
+        addFundsButton.setDisable(true);
+        addFundsButton.setOnAction(event -> addFunds());
+        HBox fundsRow = new HBox(8, fundsField, addFundsButton);
+        HBox.setHgrow(fundsField, Priority.ALWAYS);
 
         VBox panel = new VBox(14,
                 sectionTitle("Account"),
@@ -184,10 +237,13 @@ public class TradeHouseApp extends Application {
                 formLabel("Starting Balance"),
                 balanceField,
                 loginButton,
+                formLabel("Add Funds"),
+                fundsRow,
                 new Separator(),
                 metricLine("Cash", cashLabel),
                 metricLine("Available", availableCashLabel),
                 metricLine("Holdings", holdingsLabel),
+                metricLine("Profit / Loss", profitLossLabel),
                 metricLine("Server", valueLabel(SERVER_HOST + ":" + SERVER_PORT)));
         panel.getStyleClass().addAll("surface-panel", "side-panel");
         panel.setPrefWidth(272);
@@ -319,6 +375,12 @@ public class TradeHouseApp extends Application {
         }
 
         try {
+            startingBalanceBaseline = startingBalance;
+            currentCash = startingBalance;
+            currentHoldings.clear();
+            sessionBaselineReady = false;
+            addFundsButton.setDisable(true);
+            updateProfitLoss();
             ensureConnected();
             network.login(username, moneyText(startingBalance));
             updateOrderFeedback("Login sent. Waiting for server confirmation.", "feedback-info");
@@ -327,6 +389,25 @@ public class TradeHouseApp extends Application {
             setOffline();
             updateOrderFeedback("Login failed: " + e.getMessage(), "feedback-error");
             addActivity("Error", "Login", e.getMessage());
+        }
+    }
+
+    private void addFunds() {
+        Double amount = parsePositiveMoney(trimmed(fundsField));
+        if (amount == null) {
+            rejectInput("Add funds amount must be greater than 0.");
+            return;
+        }
+
+        try {
+            ensureConnected();
+            network.send("ADD_FUNDS:" + moneyText(amount));
+            updateOrderFeedback("Add funds request sent for " + moneyLabel(amount) + ".", "feedback-info");
+            addActivity("Funds", "Account", "Requested " + moneyLabel(amount));
+        } catch (RuntimeException | java.io.IOException e) {
+            setOffline();
+            updateOrderFeedback("Add funds failed: " + e.getMessage(), "feedback-error");
+            addActivity("Error", "Funds", e.getMessage());
         }
     }
 
@@ -369,6 +450,12 @@ public class TradeHouseApp extends Application {
                 if (parts.length >= 3) {
                     cashLabel.setText("$" + parts[2]);
                     holdingsLabel.setText("Waiting for trades");
+                    addFundsButton.setDisable(false);
+                    Double loginCash = parseMoney(parts[2]);
+                    if (loginCash != null) {
+                        currentCash = loginCash;
+                        updateProfitLoss();
+                    }
                     setStatus("Logged in as " + parts[1], true);
                     submitButton.setDisable(false);
                     updateOrderFeedback("Logged in. Order ticket is ready.", "feedback-success");
@@ -386,6 +473,8 @@ public class TradeHouseApp extends Application {
                 handleMarketUpdate(message);
             } else if (message.startsWith("VOLATILITY_UPDATE:")) {
                 handleVolatilityUpdate(message);
+            } else if (message.startsWith("FUNDS_ADDED:")) {
+                handleFundsAdded(message);
             } else if (message.startsWith("CONNECTION_SUCCESS:")) {
                 addActivity("Connected", "Server", message.substring("CONNECTION_SUCCESS:".length()).trim());
             } else if ("PING".equalsIgnoreCase(message)) {
@@ -402,9 +491,20 @@ public class TradeHouseApp extends Application {
         }
 
         String holdings = displayHoldings(parts[4]);
+        Double cash = parseMoney(parts[2]);
+        if (cash != null) {
+            currentCash = cash;
+        }
+        currentHoldings.clear();
+        currentHoldings.putAll(parseHoldings(parts[4]));
         cashLabel.setText("$" + parts[2]);
         availableCashLabel.setText("$" + parts[3]);
         holdingsLabel.setText(holdings);
+        if (!sessionBaselineReady) {
+            startingBalanceBaseline = portfolioValue();
+            sessionBaselineReady = true;
+        }
+        updateProfitLoss();
         addActivity("Portfolio", parts[1], "Available $" + parts[3] + ", holdings " + holdings);
     }
 
@@ -420,6 +520,7 @@ public class TradeHouseApp extends Application {
             double previousPrice = latestPrices.getOrDefault(ticker, price);
             latestPrices.put(ticker, price);
             recordPrice(ticker, price);
+            updateProfitLoss();
 
             if (!ticker.equals(selectedTicker)) {
                 feedStateLabel.setText("Live");
@@ -449,6 +550,62 @@ public class TradeHouseApp extends Application {
         addActivity("Volatility", "Bot", displayVolatilityMode(mode));
     }
 
+    private void handleFundsAdded(String message) {
+        String[] parts = message.split(":");
+        if (parts.length < 3) {
+            return;
+        }
+
+        Double amount = parseMoney(parts[2]);
+        if (amount == null) {
+            return;
+        }
+
+        startingBalanceBaseline += amount;
+        currentCash += amount;
+        updateProfitLoss();
+        updateOrderFeedback("Added " + moneyLabel(amount) + " to account.", "feedback-success");
+        addActivity("Funds", parts[1], "Added " + moneyLabel(amount));
+        playSuccessCue();
+    }
+
+    private void showAboutWindow() {
+        if (aboutStage == null) {
+            aboutRoot = buildAboutContent();
+            Scene scene = new Scene(aboutRoot, 460, 360);
+            scene.getStylesheets().add(getClass().getResource("/client/gui/tradehouse.css").toExternalForm());
+
+            aboutStage = new Stage();
+            aboutStage.setTitle("About TradeHouse");
+            aboutStage.initOwner(primaryStage);
+            aboutStage.setScene(scene);
+        }
+
+        applyThemeTo(aboutRoot);
+        aboutStage.show();
+        aboutStage.toFront();
+    }
+
+    // AI assisted with concise About-window wording; the project details were verified by the team.
+    private VBox buildAboutContent() {
+        Label title = sectionTitle("About TradeHouse");
+        Label description = bodyText("A JavaFX trading dashboard backed by a multi-threaded socket server, live bot market makers, account tracking, and CSV persistence.");
+        Label members = bodyText("Karan Bhaskar, Mohammad Ali Jafari, Rayan Khan");
+
+        VBox content = new VBox(14,
+                title,
+                description,
+                new Separator(),
+                formLabel("Made by"),
+                members,
+                new Separator(),
+                formLabel("Application notes"),
+                bodyText("Use the application menu bar for About, Volatility, and Volume. Normal is the default live-market mode. Wild makes bot prices move more aggressively for demos."));
+        content.getStyleClass().add("app-root");
+        content.setPadding(new Insets(20));
+        return content;
+    }
+
     private void handleNetworkError(String message) {
         Platform.runLater(() -> {
             setOffline();
@@ -458,28 +615,41 @@ public class TradeHouseApp extends Application {
         });
     }
 
-    private void toggleSound() {
-        soundEnabled = !soundEnabled;
-        updateSoundButtonLabel();
+    private void setSoundEnabled(boolean enabled) {
+        soundEnabled = enabled;
+        updateSoundMenuLabel();
     }
 
     private void toggleTheme() {
         darkTheme = !darkTheme;
-        applyTheme(darkTheme);
+        applyTheme();
     }
 
-    private void applyTheme(boolean dark) {
-        root.getStyleClass().removeAll("theme-dark", "theme-light");
-        root.getStyleClass().add(dark ? "theme-dark" : "theme-light");
+    private void applyTheme() {
+        applyThemeTo(root);
+        if (aboutRoot != null) {
+            applyThemeTo(aboutRoot);
+        }
         updateThemeButtonLabel();
+    }
+
+    private void applyThemeTo(VBox container) {
+        container.getStyleClass().removeAll("theme-dark", "theme-light");
+        container.getStyleClass().add(darkTheme ? "theme-dark" : "theme-light");
+    }
+
+    private void applyThemeTo(BorderPane container) {
+        container.getStyleClass().removeAll("theme-dark", "theme-light");
+        container.getStyleClass().add(darkTheme ? "theme-dark" : "theme-light");
     }
 
     private void updateThemeButtonLabel() {
         themeButton.setText(darkTheme ? "Light" : "Dark");
     }
 
-    private void updateSoundButtonLabel() {
-        soundButton.setText(soundEnabled ? "Sound On" : "Muted");
+    private void updateSoundMenuLabel() {
+        soundMenuItem.setSelected(soundEnabled);
+        soundMenuItem.setText(soundEnabled ? "Sound On" : "Muted");
     }
 
     private boolean isSystemDarkTheme() {
@@ -601,6 +771,29 @@ public class TradeHouseApp extends Application {
         priceField.setText(moneyText(Math.max(0.01, suggestedPrice)));
     }
 
+    private void updateProfitLoss() {
+        double portfolioValue = portfolioValue();
+        double profitLoss = portfolioValue - startingBalanceBaseline;
+        profitLossLabel.setText(signedMoneyLabel(profitLoss));
+        profitLossLabel.getStyleClass().removeAll("pnl-profit", "pnl-loss", "pnl-flat");
+        if (profitLoss > 0.005) {
+            profitLossLabel.getStyleClass().add("pnl-profit");
+        } else if (profitLoss < -0.005) {
+            profitLossLabel.getStyleClass().add("pnl-loss");
+        } else {
+            profitLossLabel.getStyleClass().add("pnl-flat");
+        }
+    }
+
+    private double portfolioValue() {
+        double portfolioValue = currentCash;
+        for (Map.Entry<String, Integer> entry : currentHoldings.entrySet()) {
+            double price = latestPrices.getOrDefault(entry.getKey(), STARTING_PRICES.getOrDefault(entry.getKey(), 0.0));
+            portfolioValue += entry.getValue() * price;
+        }
+        return portfolioValue;
+    }
+
     private void sendVolatilitySetting() {
         if (network == null || !network.isConnected()) {
             feedStateLabel.setText(displayVolatilityMode(selectedVolatilityMode()) + " volatility");
@@ -615,8 +808,7 @@ public class TradeHouseApp extends Application {
     }
 
     private String selectedVolatilityMode() {
-        String mode = volatilityBox.getValue();
-        return mode == null ? "NORMAL" : mode.trim().toUpperCase(Locale.ROOT);
+        return wildVolatilityItem.isSelected() ? "WILD" : "NORMAL";
     }
 
     private String displayVolatilityMode(String mode) {
@@ -768,8 +960,34 @@ public class TradeHouseApp extends Application {
         return "$" + moneyText(value);
     }
 
+    private String signedMoneyLabel(double value) {
+        if (Math.abs(value) < 0.005) {
+            return "$0.00";
+        }
+        return String.format(Locale.US, "%s$%.2f", value > 0 ? "+" : "-", Math.abs(value));
+    }
+
     private String displayHoldings(String rawHoldings) {
         return "NONE".equals(rawHoldings) ? "None" : rawHoldings.replace("|", ", ").replace("=", " ");
+    }
+
+    private Map<String, Integer> parseHoldings(String rawHoldings) {
+        Map<String, Integer> holdings = new HashMap<>();
+        if (rawHoldings == null || rawHoldings.isBlank() || "NONE".equals(rawHoldings)) {
+            return holdings;
+        }
+
+        for (String position : rawHoldings.split("\\|")) {
+            String[] parts = position.split("=", 2);
+            if (parts.length != 2) {
+                continue;
+            }
+            try {
+                holdings.put(parts[0], Integer.parseInt(parts[1]));
+            } catch (NumberFormatException ignored) {
+            }
+        }
+        return holdings;
     }
 
     // Small UI factory helpers keep the layout readable without separate component classes.

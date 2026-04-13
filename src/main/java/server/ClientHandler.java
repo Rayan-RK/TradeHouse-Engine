@@ -51,6 +51,11 @@ public class ClientHandler implements Runnable {
                     continue;
                 }
 
+                if (clientMessage.toUpperCase().startsWith("ADD_FUNDS:")) {
+                    handleAddFunds(clientMessage, session);
+                    continue;
+                }
+
                 Order newOrder = CommandParser.parseOrder(clientMessage);
                 
                 if (newOrder != null) {
@@ -127,5 +132,39 @@ public class ClientHandler implements Runnable {
         }
 
         Server.broadcast("VOLATILITY_UPDATE:" + BotEngine.getVolatilityMode());
+    }
+
+    private void handleAddFunds(String clientMessage, ClientSession session) {
+        String username = session.getUsername();
+        if (username == null || username.isBlank()) {
+            session.sendMessage("SERVER_ERROR: Login before adding funds.");
+            return;
+        }
+
+        String[] parts = clientMessage.split(":", -1);
+        if (parts.length != 2) {
+            session.sendMessage("SERVER_ERROR: ADD_FUNDS format must be ADD_FUNDS:AMOUNT");
+            return;
+        }
+
+        try {
+            double amount = Double.parseDouble(parts[1].trim());
+            if (Double.isNaN(amount) || Double.isInfinite(amount) || amount <= 0) {
+                session.sendMessage("SERVER_ERROR: Add funds amount must be greater than zero.");
+                return;
+            }
+
+            UserAccount account = Server.accountManager.addFunds(username, amount);
+            if (account == null) {
+                session.sendMessage("SERVER_ERROR: Account not found for add funds.");
+                return;
+            }
+
+            Server.fileManager.saveAccountState(Server.accountManager.getAccountsSnapshot());
+            session.sendMessage(String.format("FUNDS_ADDED:%s:%.2f", account.getUsername(), amount));
+            Server.sendAccountUpdate(account.getUsername());
+        } catch (NumberFormatException e) {
+            session.sendMessage("SERVER_ERROR: Invalid add funds amount.");
+        }
     }
 }

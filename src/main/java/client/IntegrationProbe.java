@@ -11,7 +11,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 
 /**
- * Deterministic socket smoke test for the final demo path.
+ * Automated socket check for the backend demo path.
  */
 public class IntegrationProbe {
     private static final String HOST = "127.0.0.1";
@@ -33,17 +33,21 @@ public class IntegrationProbe {
             buyer.send("LOGIN:" + user + ":1000");
             buyer.expect("ACCOUNT_UPDATE:" + user + ":1000.00:1000.00:NONE");
 
+            buyer.send("ADD_FUNDS:250.00");
+            buyer.expect("FUNDS_ADDED:" + user + ":250.00");
+            buyer.expect("ACCOUNT_UPDATE:" + user + ":1250.00:1250.00:NONE");
+
             buyer.send("BUY:" + tradeTicker + ":150.00:2");
-            buyer.expect("ACCOUNT_UPDATE:" + user + ":1000.00:700.00:NONE");
+            buyer.expect("ACCOUNT_UPDATE:" + user + ":1250.00:950.00:NONE");
             buyer.expect("SERVER_ACK");
             seller.send("SELL:" + tradeTicker + ":145.00:1");
             buyer.expect("MARKET_UPDATE:" + tradeTicker + ":145.00");
-            buyer.expect("ACCOUNT_UPDATE:" + user + ":855.00:705.00:" + tradeTicker + "=1");
+            buyer.expect("ACCOUNT_UPDATE:" + user + ":1105.00:955.00:" + tradeTicker + "=1");
             seller.expect("MARKET_UPDATE:" + tradeTicker + ":145.00");
             buyer.expect("PING");
 
             buyer.send("BUY:" + openTicker + ":10.00:1");
-            buyer.expect("ACCOUNT_UPDATE:" + user + ":855.00:695.00:" + tradeTicker + "=1");
+            buyer.expect("ACCOUNT_UPDATE:" + user + ":1105.00:945.00:" + tradeTicker + "=1");
             buyer.expect("SERVER_ACK");
         }
 
@@ -55,7 +59,7 @@ public class IntegrationProbe {
         require(Files.readString(DATA_DIR.resolve("open_orders.csv")).contains(user + ",BUY," + openTicker),
                 "open_orders.csv should include the reserved order");
 
-        System.out.println("[INTEGRATION PROBE] PASS multi-client broadcast, holdings, heartbeat, and persistence checks.");
+        System.out.println("[BACKEND CHECK] PASS multi-client broadcast, holdings, heartbeat, and persistence checks.");
     }
 
     private static long countRows(Path path) throws IOException {
@@ -103,7 +107,7 @@ public class IntegrationProbe {
                         return;
                     }
                 } catch (SocketTimeoutException e) {
-                    // Keep waiting until the probe-level deadline expires.
+                    // Keep waiting until the backend-check deadline expires.
                 }
             }
             throw new IOException(name + " did not receive " + expected);
