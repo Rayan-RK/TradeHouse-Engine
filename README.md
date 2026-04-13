@@ -46,9 +46,9 @@ mvn exec:java -Dexec.mainClass=client.TestClient
 
 ## JavaFX GUI
 
-The JavaFX client lives in `src/main/java/client/gui/TradeHouseApp.java`. It can connect to the local server, send `LOGIN` requests, validate and submit basic `BUY`/`SELL` orders, listen for server responses on a background thread, and reply to heartbeat `PING` messages with `PONG`.
+The JavaFX client lives in `src/main/java/client/gui/TradeHouseApp.java`. It can connect to the local server, send `LOGIN` requests, validate and submit basic `BUY`/`SELL` orders, listen for server responses and account snapshots on a background thread, and reply to heartbeat `PING` messages with `PONG`.
 
-The dashboard uses a modern JavaFX theme with dark/light mode toggle, live market status cards, an order ticket, a market chart, inline order feedback, and one activity table for market/order updates. Richer account/portfolio feedback and UX polish are planned for the next frontend steps.
+The dashboard uses a modern JavaFX theme with dark/light mode toggle, live market status cards, an order ticket, a market chart, server-driven cash/available-cash/holdings feedback, inline order feedback, and one activity table for market/order updates. Final UX polish and demo documentation are planned for the next frontend steps.
 
 Run the GUI:
 
@@ -95,4 +95,4 @@ For a milestone demo or recording, show:
 
 ## Current Scope
 
-This repository currently contains the backend server, a socket test client, persistence logic, account restore logic, open-order restore logic, heartbeat fault-tolerance work, and a Maven-based JavaFX GUI with socket login/order submission, local order validation, recent market activity, live market updates, and dark/light mode. Richer portfolio feedback and final demo documentation are the next frontend steps.
+This repository currently contains the backend server, a socket test client, persistence logic, account restore logic, open-order restore logic, heartbeat fault-tolerance work, and a Maven-based JavaFX GUI with socket login/order submission, local order validation, server-driven portfolio feedback, recent market activity, live market updates, and dark/light mode. Final UX polish and demo documentation are the next frontend steps.

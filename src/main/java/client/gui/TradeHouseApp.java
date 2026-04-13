@@ -41,7 +41,8 @@ public class TradeHouseApp extends Application {
 
     private final Label statusLabel = new Label("Offline");
     private final Label cashLabel = valueLabel("Waiting");
-    private final Label holdingsLabel = valueLabel("Server-owned");
+    private final Label availableCashLabel = valueLabel("--");
+    private final Label holdingsLabel = valueLabel("None");
     private final Label lastPriceLabel = valueLabel("--");
     private final Label activeTickerLabel = valueLabel("AAPL");
     private final Label feedStateLabel = valueLabel("Idle");
@@ -146,6 +147,7 @@ public class TradeHouseApp extends Application {
                 loginButton,
                 new Separator(),
                 metricLine("Cash", cashLabel),
+                metricLine("Available", availableCashLabel),
                 metricLine("Holdings", holdingsLabel),
                 metricLine("Server", valueLabel(SERVER_HOST + ":" + SERVER_PORT)));
         panel.getStyleClass().addAll("surface-panel", "side-panel");
@@ -338,6 +340,8 @@ public class TradeHouseApp extends Application {
             } else if (message.startsWith("SERVER_ERROR:")) {
                 setStatus("Server error", false);
                 rejectPendingOrder(message.substring("SERVER_ERROR:".length()).trim());
+            } else if (message.startsWith("ACCOUNT_UPDATE:")) {
+                handleAccountUpdate(message);
             } else if (message.startsWith("MARKET_UPDATE:")) {
                 handleMarketUpdate(message);
             } else if (message.startsWith("CONNECTION_SUCCESS:")) {
@@ -346,6 +350,20 @@ public class TradeHouseApp extends Application {
                 feedStateLabel.setText("Heartbeat OK");
             }
         });
+    }
+
+    private void handleAccountUpdate(String message) {
+        String[] parts = message.split(":", 5);
+        if (parts.length < 5) {
+            addActivity("Ignored", "Account", "Malformed update: " + message);
+            return;
+        }
+
+        String holdings = displayHoldings(parts[4]);
+        cashLabel.setText("$" + parts[2]);
+        availableCashLabel.setText("$" + parts[3]);
+        holdingsLabel.setText(holdings);
+        addActivity("Portfolio", parts[1], "Available $" + parts[3] + ", holdings " + holdings);
     }
 
     private void handleMarketUpdate(String message) {
@@ -570,6 +588,10 @@ public class TradeHouseApp extends Application {
 
     private String moneyLabel(double value) {
         return "$" + moneyText(value);
+    }
+
+    private String displayHoldings(String rawHoldings) {
+        return "NONE".equals(rawHoldings) ? "None" : rawHoldings.replace("|", ", ").replace("=", " ");
     }
 
     private HBox metricLine(String labelText, Label value) {

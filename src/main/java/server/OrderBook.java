@@ -43,6 +43,8 @@ public class OrderBook {
                     // --- BROADCAST THE TRADE ---
                     String broadcastMsg = String.format("MARKET_UPDATE:%s:%.2f", bid.getTicker(), ask.getPrice());
                     Server.broadcast(broadcastMsg);
+                    Server.sendAccountUpdate(bid.getUsername());
+                    Server.sendAccountUpdate(ask.getUsername());
                     // ----------------------------
 
                     System.out.println("\n=========================================");

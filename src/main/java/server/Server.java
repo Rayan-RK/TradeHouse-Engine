@@ -112,6 +112,31 @@ public class Server {
         }
     }
 
+    public static void sendAccountUpdate(String username) {
+        if (username == null || username.isBlank()) {
+            return;
+        }
+
+        UserAccount account = accountManager.getAccount(username);
+        if (account == null) {
+            return;
+        }
+
+        Map<String, Integer> holdings = account.getHoldingsSnapshot();
+        String holdingsText = holdings.isEmpty() ? "NONE" : holdings.entrySet().stream()
+                .sorted(Map.Entry.comparingByKey())
+                .map(entry -> entry.getKey() + "=" + entry.getValue())
+                .collect(java.util.stream.Collectors.joining("|"));
+        String message = String.format("ACCOUNT_UPDATE:%s:%.2f:%.2f:%s",
+                account.getUsername(), account.getCashBalance(), account.getAvailableCash(), holdingsText);
+
+        for (ClientSession session : getActiveClientSessions()) {
+            if (account.getUsername().equalsIgnoreCase(session.getUsername())) {
+                session.sendMessage(message);
+            }
+        }
+    }
+
     public static void registerClient(ClientSession session) {
         activeClients.put(session.getSocket(), session);
         clientOutputs.add(session.getWriter());

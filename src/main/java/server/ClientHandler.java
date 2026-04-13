@@ -60,6 +60,7 @@ public class ClientHandler implements Runnable {
                             out.println("SERVER_ERROR: " + reserveError);
                             continue;
                         }
+                        Server.sendAccountUpdate(newOrder.getUsername());
                     }
 
                     Server.market.processOrder(newOrder);
@@ -107,6 +108,7 @@ public class ClientHandler implements Runnable {
             session.setUsername(account.getUsername());
             Server.fileManager.saveAccountState(Server.accountManager.getAccountsSnapshot());
             session.sendMessage(String.format("LOGIN_SUCCESS:%s:%.2f", account.getUsername(), account.getCashBalance()));
+            Server.sendAccountUpdate(account.getUsername());
         } catch (NumberFormatException e) {
             session.sendMessage("SERVER_ERROR: Invalid starting balance for LOGIN.");
         }
