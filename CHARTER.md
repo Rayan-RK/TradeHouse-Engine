@@ -35,9 +35,6 @@
 
 ## 3. Work Division & Contribution Report
 
-*Note: The "Actual Contribution" column has been updated for final review.
-You may edit the "Task" column to reflect your own tasks.*
-
 | Task / Module | Assigned Member (Plan) | Actual Contribution (Final) |
 | :--- | :--- | :--- |
 | **Multi-threaded Server (Bots)** | Rayan Khan | Implemented server startup, client thread handling, order-book matching flow, and market-maker bot support. |
@@ -46,7 +43,7 @@ You may edit the "Task" column to reflect your own tasks.*
 | **Client Integration Plumbing** | Karan Bhaskar | Added client-side helper functions and GUI-to-server plumbing for the app menu, volatility/volume controls, add-funds flow, and session profit/loss display while preserving the assigned server, networking, and persistence ownership. |
 | **Persistence (File I/O & Ledger)** | Mohammad Ali Jafari | Implemented CSV ledger/account/open-order storage and server startup restoration using server-side File I/O. |
 | **UX/Sound Effects** | Karan Bhaskar | Implemented the modern dark/light JavaFX theme, inline user feedback, sound toggle, and generated success/error/market audio cues. |
-| **Documentation/README (Heartbeats)** | Mohammad Ali Jafari | Documented persistence and heartbeat behavior; final README polish includes Maven run instructions, backend check usage, references, AI disclosure, and placeholders for screenshot/demo links. |
+| **Documentation/README & Submission Media** | Team | Completed the final README as a team effort, including Maven run instructions, backend check usage, references, AI disclosure, final screenshots, and the demo video link; Mohammad Ali Jafari documented persistence and heartbeat behavior. |
 
 ## 4. Final Contribution Status (Tag one at Final Submission)
 

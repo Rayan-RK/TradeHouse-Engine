@@ -10,11 +10,16 @@ TradeHouse is a multi-threaded Java market simulation where multiple socket clie
 
 ## Screenshot
 
-TODO: Add a screenshot of the JavaFX dashboard running before final submission.
+### Light Mode
+![Light Mode](TradeHouseLightMode.png)
 
-## Video Link
+### Dark Mode
+![Dark Mode](TradeHouseDarkMode.png)
 
-TODO: Add the final video URL before submission.
+## Demo Video Link
+
+Youtube: https://youtu.be/nVShaXnkJr0
+
 
 ## Features
 
@@ -128,18 +133,7 @@ On startup, the server restores accounts, open orders, and last known market pri
 - `src/main/java/client/`: console validation clients and `IntegrationProbe`
 - `src/main/java/client/gui/`: JavaFX GUI, socket client, and audio cues
 - `src/main/resources/client/gui/`: JavaFX CSS theme
-- `data/`: runtime CSV persistence directory
-
-## Rubric Coverage
-
-- Scope: multi-client trading simulation with GUI, live updates, persistence, and reliability behavior
-- Technology Requirements: sockets, multi-threading, JavaFX GUI, and server-side File I/O are all used meaningfully
-- README: project description, collaborators, run instructions, dependencies, references, AI disclosure, and media placeholders are included
-- Video URL: TODO placeholder is present; final link must be added
-- Overall Best Practices: Maven build, package organization, validation, error feedback, automated backend check, and AI disclosure are included
-- Project Functionality: login, add funds, order submission, matching, market broadcasts, account updates, persistence restore, and heartbeat behavior are implemented
-- UI/UX: modern dashboard, live chart, theme toggle, app-menu volatility/volume controls, About window, inline feedback, portfolio panel, session profit/loss, and activity history are implemented
-- Solution Quality: the remaining presentation risk is adding the final screenshot and video URL
+- `data/`: runtime CSV persistence directory   
 
 ## References And Resources
 
