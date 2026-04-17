@@ -27,6 +27,7 @@ Youtube: https://youtu.be/nVShaXnkJr0
 - Threaded client handlers and server-side market-maker bots
 - Synchronized order book with partial fills and price-priority matching
 - JavaFX trading dashboard with live charting, order ticket, account panel, activity table, dark/light theme toggle, app-menu volatility/volume controls, and About window
+- Event-specific frontend audio cues using `javax.sound.sampled` (`success.wav` for accepted/relevant market events and `error.wav` for server errors)
 - Client socket reader thread that responds to heartbeat `PING` with `PONG`
 - Server-driven account updates for cash, available cash, holdings, add-funds requests, and session profit/loss display
 - CSV persistence for completed trades, account snapshots, and open orders
@@ -133,6 +134,7 @@ On startup, the server restores accounts, open orders, and last known market pri
 - `src/main/java/client/`: console validation clients and `IntegrationProbe`
 - `src/main/java/client/gui/`: JavaFX GUI, socket client, and audio cues
 - `src/main/resources/client/gui/`: JavaFX CSS theme
+- `src/main/resources/client/gui/sounds/`: bundled WAV files used by `AudioManager`
 - `data/`: runtime CSV persistence directory   
 
 ## References And Resources

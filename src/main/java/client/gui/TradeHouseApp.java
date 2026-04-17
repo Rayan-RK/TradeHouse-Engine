@@ -19,8 +19,8 @@ import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
-import javafx.scene.Scene;
 import javafx.scene.Node;
+import javafx.scene.Scene;
 import javafx.scene.chart.LineChart;
 import javafx.scene.chart.NumberAxis;
 import javafx.scene.chart.XYChart;
@@ -36,8 +36,8 @@ import javafx.scene.control.Separator;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
 import javafx.scene.control.TextField;
-import javafx.scene.control.Tooltip;
 import javafx.scene.control.ToggleGroup;
+import javafx.scene.control.Tooltip;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
@@ -548,7 +548,6 @@ public class TradeHouseApp extends Application {
             if (chartTick % 5 == 0) {
                 addActivity("Market", ticker, "Live price " + moneyLabel(price));
             }
-            playMarketCue();
             priceSeries.getData().add(createChartPoint(++chartTick, price));
             if (priceSeries.getData().size() > MAX_CHART_POINTS) {
                 priceSeries.getData().remove(0);
@@ -633,6 +632,7 @@ public class TradeHouseApp extends Application {
 
     private void setSoundEnabled(boolean enabled) {
         soundEnabled = enabled;
+        AudioManager.setEnabled(enabled);
         updateSoundMenuLabel();
     }
 
@@ -973,13 +973,11 @@ public class TradeHouseApp extends Application {
     private void acknowledgePendingOrder() {
         if (pendingOrder == null) {
             updateOrderFeedback("Server accepted the request.", "feedback-success");
-            playSuccessCue();
             return;
         }
 
         updateOrderFeedback("Server accepted " + pendingOrder.summary() + ".", "feedback-success");
         addActivity("Accepted", pendingOrder.ticker(), pendingOrder.summary());
-        playSuccessCue();
         pendingOrder = null;
     }
 
@@ -988,13 +986,11 @@ public class TradeHouseApp extends Application {
         if (pendingOrder == null) {
             updateOrderFeedback(displayReason, "feedback-error");
             addActivity("Rejected", "Server", displayReason);
-            playErrorCue();
             return;
         }
 
         updateOrderFeedback(displayReason, "feedback-error");
         addActivity("Rejected", pendingOrder.ticker(), pendingOrder.summary() + " - " + displayReason);
-        playErrorCue();
         pendingOrder = null;
     }
 
@@ -1019,19 +1015,13 @@ public class TradeHouseApp extends Application {
 
     private void playSuccessCue() {
         if (soundEnabled) {
-            AudioCue.success();
+            AudioManager.playSuccess();
         }
     }
 
     private void playErrorCue() {
         if (soundEnabled) {
-            AudioCue.error();
-        }
-    }
-
-    private void playMarketCue() {
-        if (soundEnabled) {
-            AudioCue.market();
+            AudioManager.playError();
         }
     }
 

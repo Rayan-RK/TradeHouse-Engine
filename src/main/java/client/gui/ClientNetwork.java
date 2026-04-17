@@ -11,6 +11,8 @@ import java.util.function.Consumer;
  * Owns the JavaFX client's socket connection and forwards server messages to the UI.
  */
 public class ClientNetwork implements AutoCloseable {
+    private static final long MARKET_SOUND_WINDOW_NANOS = 5_000_000_000L;
+
     private final String host;
     private final int port;
     private final Consumer<String> messageHandler;
@@ -20,6 +22,9 @@ public class ClientNetwork implements AutoCloseable {
     private PrintWriter writer;
     private BufferedReader reader;
     private volatile boolean connected;
+    private volatile boolean awaitingOrderAck;
+    private volatile String lastSubmittedTicker;
+    private volatile long lastOrderSubmitNanos;
 
     public ClientNetwork(String host, int port, Consumer<String> messageHandler, Consumer<String> errorHandler) {
         this.host = host;
@@ -45,6 +50,9 @@ public class ClientNetwork implements AutoCloseable {
     }
 
     public void submitOrder(String side, String ticker, String price, String quantity) {
+        awaitingOrderAck = true;
+        lastSubmittedTicker = ticker == null ? null : ticker.trim().toUpperCase();
+        lastOrderSubmitNanos = System.nanoTime();
         send(String.format("%s:%s:%s:%s", side.trim(), ticker.trim(), price.trim(), quantity.trim()));
     }
 
@@ -83,6 +91,7 @@ public class ClientNetwork implements AutoCloseable {
         try {
             String message;
             while (connected && (message = reader.readLine()) != null) {
+                handleAudioCue(message);
                 if ("PING".equalsIgnoreCase(message)) {
                     send("PONG");
                 }
@@ -99,5 +108,48 @@ public class ClientNetwork implements AutoCloseable {
                 errorHandler.accept("Connection closed by server.");
             }
         }
+    }
+
+    private void handleAudioCue(String message) {
+        if (message == null || message.isBlank()) {
+            return;
+        }
+
+        if (message.startsWith("SERVER_ACK:")) {
+            if (awaitingOrderAck) {
+                AudioManager.playSuccess();
+                awaitingOrderAck = false;
+            }
+            return;
+        }
+
+        if (message.startsWith("MARKET_UPDATE:")) {
+            if (isRecentUserTickerUpdate(message)) {
+                AudioManager.playSuccess();
+            }
+            return;
+        }
+
+        if (message.startsWith("SERVER_ERROR:")) {
+            AudioManager.playError();
+            awaitingOrderAck = false;
+        }
+    }
+
+    private boolean isRecentUserTickerUpdate(String message) {
+        if (lastSubmittedTicker == null || lastSubmittedTicker.isBlank()) {
+            return false;
+        }
+
+        if (System.nanoTime() - lastOrderSubmitNanos > MARKET_SOUND_WINDOW_NANOS) {
+            return false;
+        }
+
+        String[] parts = message.split(":", 3);
+        if (parts.length < 3) {
+            return false;
+        }
+
+        return lastSubmittedTicker.equalsIgnoreCase(parts[1]);
     }
 }
