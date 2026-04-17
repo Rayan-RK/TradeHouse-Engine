@@ -294,8 +294,12 @@
 
 /* Live market chart. */
 .market-chart {
-    -fx-background-color: transparent;
+    -fx-background-color: linear-gradient(to bottom, rgba(255,255,255,0.02), rgba(255,255,255,0.00));
     -fx-padding: 10 0 0 0;
+    -fx-alternative-column-fill-visible: false;
+    -fx-alternative-row-fill-visible: true;
+    -fx-horizontal-grid-lines-visible: true;
+    -fx-vertical-grid-lines-visible: true;
 }
 
 .chart-title,
@@ -308,17 +312,21 @@
 }
 
 .chart-plot-background {
-    -fx-background-color: transparent;
+    -fx-background-color: linear-gradient(to bottom, rgba(20, 27, 34, 0.45), rgba(8, 10, 12, 0.1));
+    -fx-background-insets: 0;
+    -fx-background-radius: 10;
 }
 
 .chart-horizontal-grid-lines,
 .chart-vertical-grid-lines {
-    -fx-stroke: -app-border;
+    -fx-stroke: rgba(255, 255, 255, 0.08);
+    -fx-stroke-dash-array: 2 8;
 }
 
 .default-color0.chart-series-line {
     -fx-stroke: -app-accent;
-    -fx-stroke-width: 3px;
+    -fx-stroke-width: 3.4px;
+    -fx-effect: dropshadow(gaussian, rgba(24, 195, 126, 0.28), 16, 0.35, 0, 0);
 }
 
 .default-color0.chart-series-line.chart-up {
@@ -327,4 +335,31 @@
 
 .default-color0.chart-series-line.chart-down {
     -fx-stroke: -app-danger;
+    -fx-effect: dropshadow(gaussian, rgba(255, 107, 122, 0.24), 16, 0.35, 0, 0);
+}
+
+.chart-line-symbol {
+    -fx-background-radius: 6;
+    -fx-padding: 3.5px;
+    -fx-background-color: -app-bg, -app-accent;
+    -fx-background-insets: 0, 1.2;
+}
+
+.default-color0.chart-line-symbol {
+    -fx-background-color: -app-bg, -app-accent;
+}
+
+.chart-legend {
+    -fx-background-color: transparent;
+}
+
+.chart-tooltip {
+    -fx-background-color: rgba(12, 16, 20, 0.94);
+    -fx-text-fill: #f3f7f5;
+    -fx-background-radius: 10;
+    -fx-border-radius: 10;
+    -fx-border-color: rgba(255, 255, 255, 0.12);
+    -fx-padding: 8 10;
+    -fx-font-size: 12px;
+    -fx-font-weight: 700;
 }

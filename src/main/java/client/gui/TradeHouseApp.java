@@ -20,6 +20,7 @@ import javafx.collections.ObservableList;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
+import javafx.scene.Node;
 import javafx.scene.chart.LineChart;
 import javafx.scene.chart.NumberAxis;
 import javafx.scene.chart.XYChart;
@@ -35,6 +36,7 @@ import javafx.scene.control.Separator;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
 import javafx.scene.control.TextField;
+import javafx.scene.control.Tooltip;
 import javafx.scene.control.ToggleGroup;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.GridPane;
@@ -58,7 +60,10 @@ public class TradeHouseApp extends Application {
             "GOOGL", 175.00,
             "AMZN", 185.00,
             "BTC", 65000.00);
-    private static final int MAX_CHART_POINTS = 30;
+    private static final int MAX_CHART_POINTS = 48;
+    private static final int SEEDED_CHART_POINTS = 18;
+    private static final double MIN_AXIS_PADDING_RATIO = 0.018;
+    private static final double MIN_AXIS_PADDING_PRICE = 0.75;
     private static final int MAX_ACTIVITY_ROWS = 12;
     private static final DateTimeFormatter TIME_FORMAT = DateTimeFormatter.ofPattern("HH:mm:ss");
 
@@ -94,6 +99,8 @@ public class TradeHouseApp extends Application {
 
     private BorderPane root;
     private LineChart<Number, Number> marketChart;
+    private NumberAxis chartXAxis;
+    private NumberAxis chartYAxis;
     private Stage primaryStage;
     private Stage aboutStage;
     private VBox aboutRoot;
@@ -271,17 +278,25 @@ public class TradeHouseApp extends Application {
 
     // Center panel shows the live market chart and starts with demo-friendly seed points.
     private VBox buildMarketChart() {
-        NumberAxis xAxis = new NumberAxis();
-        NumberAxis yAxis = new NumberAxis();
-        xAxis.setLabel("Tick");
-        yAxis.setLabel("Price");
+        chartXAxis = new NumberAxis();
+        chartYAxis = new NumberAxis();
+        chartXAxis.setLabel("Ticks");
+        chartYAxis.setLabel("Price");
+        chartXAxis.setAutoRanging(false);
+        chartXAxis.setForceZeroInRange(false);
+        chartXAxis.setLowerBound(1);
+        chartXAxis.setUpperBound(MAX_CHART_POINTS);
+        chartXAxis.setTickUnit(6);
+        chartYAxis.setAutoRanging(false);
+        chartYAxis.setForceZeroInRange(false);
+        chartYAxis.setTickUnit(1);
 
-        marketChart = new LineChart<>(xAxis, yAxis);
+        marketChart = new LineChart<>(chartXAxis, chartYAxis);
         marketChart.getStyleClass().add("market-chart");
         marketChart.setTitle(DEFAULT_TICKER + " Market Pulse");
         marketChart.setAnimated(false);
         marketChart.setLegendVisible(false);
-        marketChart.setCreateSymbols(false);
+        marketChart.setCreateSymbols(true);
         marketChart.getData().add(priceSeries);
 
         VBox chartPanel = new VBox(10, sectionTitle("Market Pulse"), marketChart);
@@ -534,10 +549,11 @@ public class TradeHouseApp extends Application {
                 addActivity("Market", ticker, "Live price " + moneyLabel(price));
             }
             playMarketCue();
-            priceSeries.getData().add(new XYChart.Data<>(++chartTick, price));
+            priceSeries.getData().add(createChartPoint(++chartTick, price));
             if (priceSeries.getData().size() > MAX_CHART_POINTS) {
                 priceSeries.getData().remove(0);
             }
+            refreshChartViewport();
             applyChartDirection(price, previousPrice);
         } catch (NumberFormatException e) {
             addActivity("Ignored", "Market", "Malformed update: " + message);
@@ -731,15 +747,13 @@ public class TradeHouseApp extends Application {
             marketChart.setTitle(selectedTicker + " Market Pulse");
         }
 
-        List<Double> history = priceHistory.get(selectedTicker);
-        if (history == null || history.isEmpty()) {
-            history = List.of(fallbackPrice, fallbackPrice, fallbackPrice, fallbackPrice, fallbackPrice);
-        }
+        List<Double> history = ensureHistoryForTicker(selectedTicker, fallbackPrice);
 
         int start = Math.max(0, history.size() - MAX_CHART_POINTS);
         for (int i = start; i < history.size(); i++) {
-            priceSeries.getData().add(new XYChart.Data<>(++chartTick, history.get(i)));
+            priceSeries.getData().add(createChartPoint(++chartTick, history.get(i)));
         }
+        refreshChartViewport();
         applyChartDirection(history.get(history.size() - 1), history.get(Math.max(0, history.size() - 2)));
     }
 
@@ -751,6 +765,22 @@ public class TradeHouseApp extends Application {
         }
     }
 
+    private List<Double> ensureHistoryForTicker(String ticker, double anchorPrice) {
+        List<Double> history = priceHistory.computeIfAbsent(ticker, key -> new ArrayList<>());
+        if (!history.isEmpty()) {
+            return history;
+        }
+
+        double basePadding = Math.max(MIN_AXIS_PADDING_PRICE, anchorPrice * 0.02);
+        for (int i = 0; i < SEEDED_CHART_POINTS; i++) {
+            double wave = Math.sin(i * 0.72) * basePadding;
+            double pullback = Math.cos(i * 0.31) * basePadding * 0.45;
+            double shapedPrice = Math.max(0.01, anchorPrice + wave + pullback);
+            history.add(roundPrice(shapedPrice));
+        }
+        return history;
+    }
+
     private void applyChartDirection(double price, double previousPrice) {
         var line = priceSeries.getNode();
         if (line == null) {
@@ -758,6 +788,64 @@ public class TradeHouseApp extends Application {
         }
         line.getStyleClass().removeAll("chart-up", "chart-down");
         line.getStyleClass().add(price < previousPrice ? "chart-down" : "chart-up");
+    }
+
+    private void refreshChartViewport() {
+        if (chartXAxis == null || chartYAxis == null || priceSeries.getData().isEmpty()) {
+            return;
+        }
+
+        int visiblePoints = priceSeries.getData().size();
+        chartXAxis.setLowerBound(Math.max(1, chartTick - MAX_CHART_POINTS + 1));
+        chartXAxis.setUpperBound(Math.max(MAX_CHART_POINTS, chartTick));
+
+        double minPrice = Double.MAX_VALUE;
+        double maxPrice = Double.MIN_VALUE;
+        for (XYChart.Data<Number, Number> point : priceSeries.getData()) {
+            double value = point.getYValue().doubleValue();
+            minPrice = Math.min(minPrice, value);
+            maxPrice = Math.max(maxPrice, value);
+        }
+
+        if (visiblePoints == 1) {
+            minPrice -= MIN_AXIS_PADDING_PRICE;
+            maxPrice += MIN_AXIS_PADDING_PRICE;
+        }
+
+        double span = Math.max(maxPrice - minPrice, MIN_AXIS_PADDING_PRICE);
+        double padding = Math.max(span * MIN_AXIS_PADDING_RATIO * 5, MIN_AXIS_PADDING_PRICE);
+        chartYAxis.setLowerBound(Math.max(0.01, minPrice - padding));
+        chartYAxis.setUpperBound(maxPrice + padding);
+        chartYAxis.setTickUnit(Math.max(span / 5.0, MIN_AXIS_PADDING_PRICE / 2.0));
+    }
+
+    private XYChart.Data<Number, Number> createChartPoint(int tick, double price) {
+        XYChart.Data<Number, Number> point = new XYChart.Data<>(tick, price);
+        point.nodeProperty().addListener((observable, oldNode, newNode) -> installPointTooltip(newNode, tick, price));
+        return point;
+    }
+
+    private void installPointTooltip(Node node, int tick, double price) {
+        if (node == null) {
+            return;
+        }
+
+        Tooltip tooltip = new Tooltip(String.format(Locale.US,
+                "%s%nTick %d%nPrice %s",
+                selectedTicker,
+                tick,
+                moneyLabel(price)));
+        tooltip.getStyleClass().add("chart-tooltip");
+        Tooltip.install(node, tooltip);
+        node.setOnMouseClicked(event -> {
+            tooltip.show(node, event.getScreenX() + 10, event.getScreenY() - 10);
+            event.consume();
+        });
+        node.setOnMouseExited(event -> tooltip.hide());
+    }
+
+    private double roundPrice(double price) {
+        return Math.round(price * 100.0) / 100.0;
     }
 
     private void updateSuggestedOrderPrice(boolean force) {
