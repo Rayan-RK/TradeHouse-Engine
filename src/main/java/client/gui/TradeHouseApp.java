@@ -548,12 +548,7 @@ public class TradeHouseApp extends Application {
             if (chartTick % 5 == 0) {
                 addActivity("Market", ticker, "Live price " + moneyLabel(price));
             }
-            priceSeries.getData().add(createChartPoint(++chartTick, price));
-            if (priceSeries.getData().size() > MAX_CHART_POINTS) {
-                priceSeries.getData().remove(0);
-            }
-            refreshChartViewport();
-            applyChartDirection(price, previousPrice);
+            renderSelectedTickerChart(price);
         } catch (NumberFormatException e) {
             addActivity("Ignored", "Market", "Malformed update: " + message);
         }
@@ -741,20 +736,23 @@ public class TradeHouseApp extends Application {
     }
 
     private void renderSelectedTickerChart(double fallbackPrice) {
-        priceSeries.getData().clear();
         chartTick = 0;
         if (marketChart != null) {
             marketChart.setTitle(selectedTicker + " Market Pulse");
         }
 
         List<Double> history = ensureHistoryForTicker(selectedTicker, fallbackPrice);
+        List<XYChart.Data<Number, Number>> visiblePoints = new ArrayList<>();
 
         int start = Math.max(0, history.size() - MAX_CHART_POINTS);
         for (int i = start; i < history.size(); i++) {
-            priceSeries.getData().add(createChartPoint(++chartTick, history.get(i)));
+            visiblePoints.add(createChartPoint(++chartTick, history.get(i)));
         }
+
+        priceSeries.getData().setAll(visiblePoints);
         refreshChartViewport();
         applyChartDirection(history.get(history.size() - 1), history.get(Math.max(0, history.size() - 2)));
+        forceChartRefresh();
     }
 
     private void recordPrice(String ticker, double price) {
@@ -817,6 +815,16 @@ public class TradeHouseApp extends Application {
         chartYAxis.setLowerBound(Math.max(0.01, minPrice - padding));
         chartYAxis.setUpperBound(maxPrice + padding);
         chartYAxis.setTickUnit(Math.max(span / 5.0, MIN_AXIS_PADDING_PRICE / 2.0));
+    }
+
+    private void forceChartRefresh() {
+        if (marketChart == null) {
+            return;
+        }
+
+        marketChart.requestLayout();
+        marketChart.applyCss();
+        marketChart.layout();
     }
 
     private XYChart.Data<Number, Number> createChartPoint(int tick, double price) {
