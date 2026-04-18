@@ -11,10 +11,10 @@ TradeHouse is a multi-threaded Java market simulation where multiple socket clie
 ## Screenshot
 
 ### Light Mode
-![Light Mode](TradeHouseLightMode.png)
+![Light Mode](TradeHouseLight.png)
 
 ### Dark Mode
-![Dark Mode](TradeHouseDarkMode.png)
+![Dark Mode](TradeHouseDark.png)
 
 ## Demo Video Link
 
