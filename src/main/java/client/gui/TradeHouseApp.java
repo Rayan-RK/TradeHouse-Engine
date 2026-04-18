@@ -480,7 +480,6 @@ public class TradeHouseApp extends Application {
             } else if (message.startsWith("SERVER_ACK:")) {
                 acknowledgePendingOrder();
             } else if (message.startsWith("SERVER_ERROR:")) {
-                setStatus("Server error", false);
                 rejectPendingOrder(message.substring("SERVER_ERROR:".length()).trim());
             } else if (message.startsWith("ACCOUNT_UPDATE:")) {
                 handleAccountUpdate(message);
