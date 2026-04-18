@@ -18,7 +18,7 @@ TradeHouse is a multi-threaded Java market simulation where multiple socket clie
 
 ## Demo Video Link
 
-Youtube: https://youtu.be/nVShaXnkJr0
+GDrive: https://drive.google.com/file/d/1G6ws_Nu3J0uvM8miXM9iKpZfOJB9Dc_X/view?usp=sharing
 
 
 ## Features
